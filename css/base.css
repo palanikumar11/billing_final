@@ -168,6 +168,38 @@ img { max-width: 100%; }
   animation: pulse 1.5s ease-in-out infinite;
 }
 @keyframes pulse { 0%,100% { transform: scale(1); box-shadow: var(--shadow-brand); } 50% { transform: scale(.93); box-shadow: 0 4px 12px -4px var(--brand-glow); } }
+
+/* Golden splash — Sri Ezhumalaiyan Traders branding */
+#splash.gold { background: radial-gradient(120% 120% at 50% 30%, #1a1206 0%, #0b0a08 60%, #000 100%); }
+/* Spinning gold ring wrapping the logo — the logo IS the loader. */
+#splash.gold .s-logo-ring {
+  position: relative; width: 172px; height: 172px; margin: 0 auto 22px;
+  display: grid; place-items: center;
+}
+#splash.gold .s-logo-ring::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  border: 3px solid rgba(212,175,55,.15);
+  border-top-color: #f7e7a6; border-right-color: #e6c65a;
+  animation: spin .9s linear infinite;
+}
+#splash.gold .s-logo {
+  width: 128px; height: 128px; margin: 0; border-radius: 24px;
+  background: transparent; box-shadow: none;
+  animation: goldFloat 2.4s ease-in-out infinite;
+}
+#splash.gold .s-logo img {
+  width: 100%; height: 100%; object-fit: contain;
+  filter: drop-shadow(0 0 26px rgba(212,175,55,.55)) drop-shadow(0 6px 14px rgba(0,0,0,.6));
+}
+#splash.gold .s-title {
+  font-weight: 800; font-size: 20px; letter-spacing: .06em;
+  background: linear-gradient(180deg, #f7e7a6 0%, #e6c65a 45%, #c9a233 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+#splash.gold .s-sub { color: #b9a45f; font-size: 13px; letter-spacing: .14em; margin-top: 4px; text-transform: uppercase; }
+#splash.gold .spinner { border-color: rgba(212,175,55,.2); border-top-color: #e6c65a; }
+@keyframes goldFloat { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-6px) scale(1.03); } }
+
 #splash .spinner {
   width: 26px; height: 26px; margin: 16px auto 0;
   border: 3px solid var(--border); border-top-color: var(--brand);

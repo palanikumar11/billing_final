@@ -212,8 +212,10 @@
         if (evt === "change:settings") { App.refreshBranding(); }
       }, 300));
 
-      // Optional app lock (login) — waits for unlock if a password is configured
-      if (App.auth && App.auth.isConfigured()) { await App.auth.requireUnlock(); addLockButton(); }
+      // Optional app lock (login) — waits for unlock if a password is configured.
+      // After a successful login we always land on the Home (Dashboard) page.
+      let justLoggedIn = false;
+      if (App.auth && App.auth.isConfigured()) { await App.auth.requireUnlock(); addLockButton(); justLoggedIn = true; }
 
       // Nav
       $$(".nav-item").forEach((n) => n.addEventListener("click", () => { ui.navigate(n.dataset.route); closeMobileNav(); }));
@@ -223,6 +225,17 @@
       const mtMore = $("#mtMore"); if (mtMore) mtMore.addEventListener("click", (e) => { e.stopPropagation(); document.body.classList.toggle("nav-open"); });
       $("#themeBtn").addEventListener("click", toggleTheme);
       $("#quickBillBtn").addEventListener("click", () => ui.navigate("pos"));
+
+      // Sidebar Logout — only meaningful when a password is set; locks & reloads to the login screen.
+      const logoutEl = $("#sidebarLogout");
+      if (logoutEl) {
+        if (!(App.auth && App.auth.isConfigured())) logoutEl.style.display = "none";
+        logoutEl.addEventListener("click", async () => {
+          closeMobileNav();
+          const ok = App.modal ? await App.modal.confirm({ title: "Logout", message: "Lock the app and return to the login screen?", confirmText: "Logout" }) : true;
+          if (ok) App.auth.lock();
+        });
+      }
 
       // Cloud backup status indicator — reflects sync state; click to back up now.
       const syncEl = $("#syncStatus");
@@ -256,8 +269,8 @@
       document.addEventListener("keydown", shortcuts);
       window.addEventListener("hashchange", () => ui.navigate(location.hash.slice(1)));
 
-      // Initial route
-      ui.navigate(location.hash.slice(1) || "dashboard");
+      // Initial route — after login always show Home (Dashboard); otherwise honour the URL hash.
+      ui.navigate(justLoggedIn ? "dashboard" : (location.hash.slice(1) || "dashboard"));
 
       // Hide splash
       const sp = $("#splash");

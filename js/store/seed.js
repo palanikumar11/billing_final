@@ -58,6 +58,14 @@
       // UI
       theme: "light",
       lowStockThresholdDefault: 5,
+      // App Lock (login) — ships ON so the live app requires sign-in before any change.
+      // Default: user "admin", password "Ezhu@2026". Change it in Settings → Security & Login.
+      security: {
+        user: "admin",
+        salt: "e92d2adfaa2a19e51a3d89d2d2c11518",
+        hash: "2da3d4765f60f1e1a9387949dc1b59b68497c40ee73e151bbf519cde25d96ca8",
+        recoveryHash: "4bf7bcc8013bda7bb9b0b950484e648e66564d8f8e1cdae52f269d05a211ccaa",
+      },
     };
   }
 
