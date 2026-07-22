@@ -1,0 +1,32 @@
+# Cloudflare Worker config for RetailPro cloud sync (Workers KV).
+#
+# Setup:
+#   npm i -g wrangler
+#   wrangler login
+#   wrangler kv namespace create BILLING_KV      # copy the returned id below
+#   wrangler secret put SYNC_TOKEN               # (optional) set an API token
+#   wrangler deploy
+#
+# Then paste the deployed URL + token into the app: Settings/Backup → Worker URL.
+
+name = "retailpro-api"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# Workers KV — permanent key/value storage for all billing data.
+[[kv_namespaces]]
+binding = "BILLING_KV"
+id = "e1948beb9eee40e58ed50687a60b8ea8"
+
+# Optional: R2 bucket for large asset/backup blobs (logos, signatures, full dumps).
+# Uncomment after: wrangler r2 bucket create retailpro-assets
+# [[r2_buckets]]
+# binding = "BILLING_R2"
+# bucket_name = "retailpro-assets"
+
+# SYNC_TOKEN is a secret (do not put it here). Set it with:
+#   wrangler secret put SYNC_TOKEN
+# If unset, the API is open (fine for testing; set a token for production).
+
+[observability]
+enabled = true

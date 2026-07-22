@@ -1,0 +1,155 @@
+/* =========================================================================
+   Invoice / document styling — used for on-screen preview AND print/PDF.
+   A4 page, professional layout, retail watermark, GST 3-copy support.
+   ========================================================================= */
+
+.doc-viewport { background: #55585f; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 24px; }
+
+/* A4 sheet: 210 x 297 mm */
+.a4 {
+  width: 210mm; min-height: 297mm; background: #fff; color: #1a1a1a;
+  padding: 12mm 12mm; position: relative; box-shadow: 0 6px 30px rgba(0,0,0,.35);
+  font-family: "Inter", "Segoe UI", sans-serif; font-size: 11px; line-height: 1.45;
+  page-break-after: always; overflow: hidden;
+}
+.a4:last-child { page-break-after: auto; }
+
+/* ---- Watermark (retail bills only) ---- */
+.a4 .watermark {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  pointer-events: none; z-index: 0;
+}
+.a4 .watermark .wm-inner { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 82%; }
+.a4 .watermark img { width: 62%; max-height: 58%; object-fit: contain; opacity: .13; }
+.a4 .watermark img.wm-gold { opacity: .34; filter: none; }   /* golden logo — bolder */
+.a4 .watermark .wm-name { font-size: 30px; font-weight: 900; color: #b8860b; opacity: .32; letter-spacing: 2px; text-align: center; margin-top: 10px; white-space: nowrap; }
+.a4 .watermark .wm-text { font-size: 72px; font-weight: 800; color: #b8860b; opacity: .08; transform: rotate(-22deg); letter-spacing: 4px; text-align: center; }
+.a4 > .doc-inner { position: relative; z-index: 1; }
+
+/* ---- Copy label (GST original/duplicate/triplicate) ---- */
+.copy-label { position: absolute; top: 8mm; right: 12mm; font-size: 10px; font-weight: 700; color: #444; border: 1px solid #888; padding: 2px 9px; border-radius: 4px; text-transform: uppercase; letter-spacing: .04em; z-index: 2; }
+
+/* ---- Header ---- */
+.inv-head { display: flex; gap: 14px; align-items: flex-start; border-bottom: 2px solid #222; padding-bottom: 10px; }
+.inv-head .logo-box { width: 108px; height: 80px; flex-shrink: 0; display: grid; place-items: center; }
+.inv-head .logo-box img { width: 100%; height: 100%; object-fit: contain; }
+.inv-head .logo-fallback { width: 66px; height: 66px; border-radius: 12px; background: #4f46e5; color: #fff; display: grid; place-items: center; font-size: 26px; font-weight: 800; }
+.inv-head .co { flex: 1; }
+.inv-head .co h1 { font-size: 21px; font-weight: 800; letter-spacing: -.01em; color: #111; }
+.inv-head .co .co-line { font-size: 10.5px; color: #333; }
+.inv-head .co .co-reg { font-size: 10.5px; margin-top: 3px; }
+.inv-head .co .co-reg b { color: #111; }
+/* Invoice No / Date live here, top-right of the header — on GST and non-GST alike. */
+.inv-head .doc-title { text-align: right; white-space: nowrap; }
+.inv-head .doc-title .tt { font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: #111; }
+.inv-head .doc-title .st { font-size: 11.5px; color: #222; margin-top: 3px; }
+.inv-head .doc-title .st b { color: #666; font-weight: 700; }
+
+/* ---- Meta / parties ---- */
+.inv-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid #cfcfcf; margin-top: 10px; }
+.inv-meta .cell { padding: 7px 12px; border-right: 1px solid #e2e2e2; }
+.inv-meta .cell:last-child { border-right: none; }
+.inv-meta .cell.span2 { grid-column: span 2; border-right: none; border-top: 1px solid #e2e2e2; }
+.inv-meta .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #777; font-weight: 700; }
+.inv-meta .val { font-size: 11px; color: #111; }
+.inv-meta .party-name { font-weight: 700; font-size: 12px; }
+
+.parties { display: grid; grid-template-columns: 1fr 1fr; margin-top: 10px; border: 1px solid #cfcfcf; }
+.parties .p-col { padding: 8px 12px; }
+.parties .p-col + .p-col { border-left: 1px solid #e2e2e2; }
+.parties .p-title { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #777; font-weight: 700; margin-bottom: 3px; }
+.parties .p-name { font-weight: 700; font-size: 12.5px; }
+.parties .p-line { font-size: 10.5px; color: #333; }
+
+/* ---- Items table ---- */
+table.inv-items {
+  width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 10px;
+  font-size: 10.5px; border: 1px solid #9aa1ab;
+}
+table.inv-items th, table.inv-items td { border: 1px solid #d5d9df; padding: 6px 8px; vertical-align: top; }
+/* Header band — light background, bold dark text, printed with exact colours */
+table.inv-items thead th {
+  background: #eef1f5; color: #111; font-size: 9px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .05em; text-align: center;
+  vertical-align: middle; border-color: #b9c0c9;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+table.inv-items td.r, table.inv-items th.r { text-align: right; font-variant-numeric: tabular-nums; }
+table.inv-items td.c, table.inv-items th.c { text-align: center; }
+table.inv-items tbody td { color: #222; }
+table.inv-items tbody tr:nth-child(even) td { background: #f7f9fb; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+table.inv-items tbody td { height: 20px; }   /* even row rhythm, whatever the item count */
+table.inv-items .desc { font-weight: 600; word-wrap: break-word; overflow-wrap: anywhere; }
+table.inv-items .note { font-size: 9.5px; color: #111; font-weight: 800; }
+/* Totals strip */
+table.inv-items tfoot td {
+  background: #eef1f5; font-weight: 800; color: #111; font-size: 10.5px;
+  border-top: 1.4px solid #9aa1ab; font-variant-numeric: tabular-nums;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+table.inv-items tfoot td.lbl { text-align: right; text-transform: uppercase; letter-spacing: .05em; font-size: 9.5px; }
+
+/* ---- Totals + tax summary ---- */
+.inv-bottom { display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px; margin-top: 10px; align-items: start; }
+
+/* Pay-by-UPI QR — beside (left of) the totals box, on GST and non-GST alike.
+   Big enough that a phone camera locks on: the uploaded QR is usually a tall
+   screenshot, so object-fit letterboxes it into the box instead of squashing. */
+.bottom-left { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.qr-pay { border: 1px solid #cfcfcf; padding: 8px; text-align: center; }
+.qr-pay img { display: block; width: 170px; height: 170px; object-fit: contain; image-rendering: crisp-edges; }
+.qr-pay .qr-cap { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: #444; margin-top: 6px; }
+.tax-summary { border: 1px solid #cfcfcf; border-collapse: collapse; width: 100%; font-size: 9.5px; }
+.tax-summary th, .tax-summary td { border: 1px solid #cfcfcf; padding: 4px 6px; text-align: right; }
+.tax-summary th { background: #f0f2f6; text-align: center; }
+.totals-box { border: 1px solid #cfcfcf; }
+.totals-box .trow { display: flex; justify-content: space-between; padding: 6px 12px; font-size: 11px; border-bottom: 1px solid #eee; }
+.totals-box .trow .k { color: #444; }
+.totals-box .trow.grand { background: #111; color: #fff; font-weight: 800; font-size: 14px; padding: 8px 12px; border-bottom: none; }
+.totals-box .trow.grand .k { color: #fff; }
+
+.amt-words { border: 1px solid #cfcfcf; padding: 7px 12px; margin-top: 8px; font-size: 11px; }
+.amt-words b { text-transform: uppercase; }
+
+/* Important notice — bold strip printed on every bill (GST & Without-GST) */
+.imp-note { border: 1.6px solid #1a1a1a; padding: 7px 10px; margin-top: 8px; font-size: 10.5px; text-align: center; line-height: 1.65; letter-spacing: .02em; color: #111; background: #fafafa; }
+.imp-note b { font-weight: 800; }
+
+/* ---- Footer ---- */
+.inv-foot { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; margin-top: 12px; }
+.inv-foot .bank-decl { font-size: 10px; }
+.inv-foot .bank-decl .blk { border: 1px solid #cfcfcf; padding: 7px 10px; margin-bottom: 8px; }
+.inv-foot .bank-decl .blk .h { font-weight: 700; font-size: 9px; text-transform: uppercase; color: #777; margin-bottom: 3px; }
+/* Bank details — one field per line, no separators */
+.bank-tbl { border-collapse: collapse; }
+.bank-tbl td { padding: 1.5px 0; vertical-align: top; font-size: 10px; line-height: 1.35; }
+.bank-tbl td.bk { color: #666; width: 66px; white-space: nowrap; }
+.bank-tbl td.bk::after { content: ":"; }
+.bank-tbl td.bv { font-weight: 700; color: #111; padding-left: 8px; }
+/* Signature block — roomy enough for a real signature on GST and non-GST alike.
+   The image is letterboxed into the box (uploads are rarely the right aspect). */
+.inv-foot .sign-area { text-align: center; border: 1px solid #cfcfcf; padding: 10px 12px; display: flex; flex-direction: column; min-height: 156px; }
+.inv-foot .sign-area .for { font-weight: 700; font-size: 11.5px; }
+.inv-foot .sign-area .sign-img { flex: 1; min-height: 92px; margin: 8px auto; width: 100%; display: grid; place-items: center; }
+.inv-foot .sign-area .sign-img img { max-height: 92px; max-width: 100%; object-fit: contain; }
+.inv-foot .sign-area .sign-line { border-top: 1px solid #999; margin-top: auto; padding-top: 5px; font-size: 10px; }
+.stamp-img { position: absolute; opacity: .85; max-width: 96px; max-height: 96px; }
+
+.thanks { text-align: center; font-size: 11px; margin-top: 10px; color: #333; font-weight: 600; }
+.terms { font-size: 9px; color: #666; margin-top: 6px; border-top: 1px dashed #ccc; padding-top: 5px; }
+
+/* Retail-specific compactness */
+.a4.retail { font-size: 11.5px; }
+.a4.retail table.inv-items th, .a4.retail table.inv-items td { padding: 6px 8px; }
+
+/* ---- Print ---- */
+@media print {
+  body * { visibility: hidden; }
+  #print-root, #print-root * { visibility: visible; }
+  #print-root { position: absolute; inset: 0; }
+  .doc-viewport { background: #fff; padding: 0; gap: 0; overflow: visible !important; }
+  /* zoom:1 overrides the mobile screen-zoom so print/PDF is always full A4 size */
+  .a4, .a4.retail { box-shadow: none; margin: 0; width: 210mm; min-height: 297mm; zoom: 1 !important; transform: none !important; }
+  @page { size: A4; margin: 0; }
+  .no-print { display: none !important; }
+}

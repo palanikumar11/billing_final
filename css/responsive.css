@@ -1,0 +1,146 @@
+/* =========================================================================
+   responsive.css — layout classes + breakpoints (desktop / tablet / mobile).
+   Loaded LAST so it wins over base/components at equal specificity.
+   ========================================================================= */
+
+/* ---- Layout grids (desktop defaults) ---- */
+.pos-layout { display: grid; grid-template-columns: 1fr 380px; gap: 16px; height: calc(100vh - var(--header-h) - 44px); }
+.pos-left { min-width: 0; }
+.reports-layout { display: grid; grid-template-columns: 230px 1fr; gap: 16px; align-items: start; }
+.two-col { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; }
+
+/* #menuBtn (hamburger) only on smaller screens */
+#menuBtn { display: none; }
+
+/* Mobile bottom tab bar (hidden on desktop) */
+.mobile-tabbar { display: none; }
+
+/* =======================================================================
+   TABLET  (≤ 1024px)
+   ======================================================================= */
+@media (max-width: 1024px) {
+  :root { --sidebar-w: 210px; }
+  #app { grid-template-columns: var(--sidebar-w) 1fr; }
+  .pos-layout { grid-template-columns: 1fr 330px; }
+  .reports-layout { grid-template-columns: 190px 1fr; }
+  .global-search { width: 240px; }
+  .view-wrap { padding: 18px; }
+}
+
+/* =======================================================================
+   MOBILE  (≤ 768px) — sidebar becomes an off-canvas drawer
+   ======================================================================= */
+@media (max-width: 768px) {
+  #app { grid-template-columns: 1fr; }
+
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; width: 264px; z-index: 320;
+    transform: translateX(-100%); transition: transform .26s cubic-bezier(.4,0,.2,1);
+    box-shadow: var(--shadow-lg);
+  }
+  body.nav-open .sidebar { transform: none; }
+  /* backdrop */
+  body.nav-open::before {
+    content: ""; position: fixed; inset: 0; background: rgba(2,6,20,.5);
+    z-index: 300; animation: fadeIn .2s;
+  }
+  /* Drawer trigger + New Bill button live in the bottom bar now */
+  #menuBtn { display: none; }
+  #quickBillBtn { display: none; }
+
+  .topbar { padding: 0 12px; gap: 8px; height: 56px; }
+  .topbar .page-title { font-size: 16px; font-weight: 700; }
+  .global-search { width: auto; flex: 1; max-width: none; }
+  .global-search input { font-size: 16px; height: 40px; }  /* 16px avoids iOS zoom */
+  #themeBtn, #lockBtn { flex-shrink: 0; }
+  /* Cloud status: compact to just the dot on phones */
+  .sync-status { padding: 0 11px; height: 40px; }
+  .sync-status .lbl { display: none; }
+
+  .view-wrap { padding: 14px 14px 84px; }   /* space for bottom bar */
+  .page-head { gap: 10px; }
+  .page-head .actions { width: 100%; }
+  .page-head .actions .btn { flex: 1; justify-content: center; }
+
+  /* stack the multi-column layouts */
+  .pos-layout, .reports-layout, .two-col { grid-template-columns: 1fr; height: auto; }
+  .pos-left { min-height: 42vh; }
+  .pos-right { max-height: none; }
+
+  /* POS top row: search full-width on top, type + Manual share the next row */
+  .pos-toprow { flex-wrap: wrap; }
+  .pos-search { flex: 1 1 100%; order: -1; }
+  #posSearch { height: 48px; font-size: 16px; }   /* 16px = no iOS zoom */
+  .pos-type { flex: 1; width: auto; height: 44px; }
+  .pos-manual { flex: 0 0 auto; }
+  .pos-suggest { top: 52px; }
+  .pos-sr-item { padding: 11px; }                  /* bigger touch targets */
+  .pos-sr-ic { width: 38px; height: 38px; }
+
+  /* Reports: side menu becomes a horizontal chip scroller on top */
+  .reports-menu { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 6px; }
+  .reports-menu .report-item { flex: 0 0 auto; background: var(--surface-2); }
+  .reports-menu .report-item.active { background: var(--brand-soft); }
+
+  /* Invoice preview: scale the whole A4 to fit the phone (keeps exact print
+     layout & column alignment, unlike reflowing). `zoom` also resizes the box
+     so there's no leftover whitespace; print @media is unaffected. */
+  .doc-viewport { padding: 8px; overflow-x: auto; }
+  .a4, .a4.retail { zoom: 0.5; }
+
+  .stat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat { padding: 14px; }
+  .stat .stat-value { font-size: 21px; }
+  .card.pad { padding: 15px; }
+
+  .modal, .modal.wide, .modal.narrow { max-width: 100%; }
+  .modal-body { max-height: 68vh; }
+  .modal-foot { flex-wrap: wrap; }
+  .modal-foot .btn { flex: 1; min-width: 44%; }
+  .form-grid { grid-template-columns: 1fr; }
+  .field.col-2, .field.col-full { grid-column: span 1; }
+
+  .toolbar { gap: 8px; }
+  .toolbar .search-box { min-width: 140px; max-width: none; flex: 1 1 100%; }
+  .toolbar select { flex: 1; }
+
+  .tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .tab { white-space: nowrap; }
+
+  .toast-stack { left: 12px; right: 12px; bottom: 80px; }
+  .toast { max-width: none; }
+
+  /* ---- Bottom tab bar ---- */
+  .mobile-tabbar {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 150;
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -4px 20px rgba(15,23,42,.08);
+  }
+  .mt-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: none; border: none; padding: 5px 2px; color: var(--fg-muted);
+    font: 600 10.5px var(--font); border-radius: 10px; transition: var(--transition);
+  }
+  .mt-item .mt-ic { font-size: 19px; line-height: 1; }
+  .mt-item.active { color: var(--brand); }
+  .mt-item.active .mt-ic { transform: translateY(-1px); }
+  .mt-item:active { background: var(--surface-2); }
+}
+
+/* =======================================================================
+   SMALL MOBILE (≤ 480px)
+   ======================================================================= */
+@media (max-width: 480px) {
+  .topbar .page-title { display: none; }        /* give the search room */
+  .stat { padding: 12px; }
+  .stat .stat-value { font-size: 19px; }
+  .stat .stat-ic { width: 34px; height: 34px; font-size: 16px; margin-bottom: 8px; }
+  .page-head h2 { font-size: 18px; }
+  .a4, .a4.retail { zoom: 0.42; }   /* smaller phones */
+}
+
+/* Tablets: let the A4 (210mm) scroll rather than clip */
+@media (min-width: 769px) and (max-width: 900px) {
+  .doc-viewport { overflow-x: auto; }
+}

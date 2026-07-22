@@ -1,0 +1,18 @@
+{
+  "name": "retailpro-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Worker (KV) backend for RetailPro billing app",
+  "scripts": {
+    "login": "wrangler login",
+    "whoami": "wrangler whoami",
+    "kv:create": "wrangler kv namespace create BILLING_KV",
+    "deploy": "wrangler deploy",
+    "pages": "wrangler pages deploy ../public --project-name retailpro",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^3.114.0"
+  }
+}

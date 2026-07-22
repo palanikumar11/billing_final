@@ -1,0 +1,9 @@
+# Cloudflare Pages headers — always serve the latest app (revalidate each load).
+/*
+  Cache-Control: no-cache, must-revalidate
+/index.html
+  Cache-Control: no-cache, must-revalidate
+/js/*
+  Cache-Control: no-cache, must-revalidate
+/css/*
+  Cache-Control: no-cache, must-revalidate

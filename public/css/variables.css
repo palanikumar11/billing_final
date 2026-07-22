@@ -1,0 +1,109 @@
+/* =========================================================================
+   RetailPro design tokens — "Indigo & Amber" identity (v2 redesign)
+   Light (default) + dark theme. Toggled via data-theme="dark" on <html>.
+   ========================================================================= */
+:root {
+  /* ---- Brand: deep indigo → violet ---- */
+  --brand: #4f46e5;
+  --brand-600: #4338ca;
+  --brand-700: #3730a3;
+  --brand-soft: #eef1ff;
+  --brand-glow: rgba(79, 70, 229, .35);
+
+  /* ---- Festive amber-gold accent (crackers / retail) ---- */
+  --gold: #d98a0b;
+  --gold-600: #b3720a;
+  --gold-soft: #fdf2dc;
+  --brand-grad: var(--brand);   /* solid (classic) — was a gradient */
+  --gold-grad: var(--gold);     /* solid (classic) — was a gradient */
+  --brand-sheen: var(--brand-soft);
+
+  /* ---- Status ---- */
+  --success: #0d9f6e;
+  --success-soft: #e5f7ef;
+  --warning: #d97706;
+  --warning-soft: #fdf1e0;
+  --danger: #e02424;
+  --danger-soft: #fdeaea;
+  --info: #0e9bbd;
+  --info-soft: #e3f6fb;
+
+  /* ---- Surfaces (warm-cool neutral) ---- */
+  --bg: #eef1f8;
+  --surface: #ffffff;
+  --surface-2: #f5f7fc;
+  --surface-3: #eceffa;
+  --sidebar: #10142a;
+  --sidebar-fg: #b7bfd8;
+  --sidebar-active: #1c2344;
+
+  /* ---- Text ---- */
+  --fg: #141a2e;
+  --fg-muted: #5c6580;
+  --fg-faint: #98a1bd;
+
+  /* ---- Lines ---- */
+  --border: #e5e8f2;
+  --border-strong: #cdd3e4;
+  --ring: 0 0 0 3px var(--brand-soft);
+
+  /* ---- Elevation — layered, soft ---- */
+  --shadow-sm: 0 1px 2px rgba(20, 26, 46, .06), 0 1px 1px rgba(20, 26, 46, .04);
+  --shadow: 0 6px 18px -6px rgba(20, 26, 46, .16), 0 2px 6px -2px rgba(20, 26, 46, .08);
+  --shadow-lg: 0 24px 60px -16px rgba(20, 26, 46, .32), 0 8px 20px -8px rgba(20, 26, 46, .18);
+  --shadow-brand: 0 8px 22px -6px var(--brand-glow);
+
+  /* ---- Shape ---- */
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-lg: 20px;
+  --radius-xl: 26px;
+
+  /* ---- Layout ---- */
+  --sidebar-w: 250px;
+  --header-h: 64px;
+  --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+
+  --transition: .2s cubic-bezier(.4, 0, .2, 1);
+  --spring: .34s cubic-bezier(.34, 1.4, .5, 1);
+}
+
+:root[data-theme="dark"] {
+  --brand: #7c83ff;
+  --brand-600: #6870f5;
+  --brand-700: #565ee8;
+  --brand-soft: #1b2143;
+  --brand-glow: rgba(124, 131, 255, .4);
+  --brand-grad: var(--brand);
+  --brand-sheen: var(--brand-soft);
+
+  --gold-soft: #2e2712;
+  --success: #34d399;
+  --success-soft: #10281f;
+  --warning-soft: #2c2211;
+  --danger: #f26565;
+  --danger-soft: #2c1616;
+  --info-soft: #0f2a31;
+
+  --bg: #080b16;
+  --surface: #121728;
+  --surface-2: #0e1322;
+  --surface-3: #182036;
+  --sidebar: #05070f;
+  --sidebar-fg: #9aa3c0;
+  --sidebar-active: #1a2140;
+
+  --fg: #e8edf9;
+  --fg-muted: #99a2be;
+  --fg-faint: #616a86;
+
+  --border: #232c46;
+  --border-strong: #35406090;
+  --ring: 0 0 0 3px var(--brand-soft);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow: 0 8px 24px -8px rgba(0, 0, 0, .6);
+  --shadow-lg: 0 28px 70px -18px rgba(0, 0, 0, .8);
+  --shadow-brand: 0 8px 24px -6px var(--brand-glow);
+}
