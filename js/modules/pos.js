@@ -334,16 +334,43 @@
     fields.appendChild(noteFld);
 
     // Packaging charge — Without-GST / Estimate bills only
+    let pkgInp = null;
     if (st.type !== "gst") {
-      const pkgInp = el("input", { type: "number", value: st.packagingPct || "", placeholder: "0", step: "any", min: "0" });
+      pkgInp = el("input", { type: "number", value: st.packagingPct || "", placeholder: "0", step: "any", min: "0" });
       pkgInp.addEventListener("input", (e) => { st.packagingPct = Number(e.target.value) || 0; drawTotals(); });
       fields.appendChild(fld("Packaging %", pkgInp));
     }
+
+    // Keyboard navigation across the preview fields: Qty → Rate → Amount → Note
+    // (→ Packaging on Without-GST bills). Right arrow steps FORWARD, Left arrow
+    // steps BACK, so a whole line can be filled without the mouse. Number fields
+    // always jump; the free-text Note only jumps when the caret is at its edge,
+    // so ← / → still move within the typed text.
+    const navInputs = [qtyInp, rateInp, amtInp, noteInp];
+    if (pkgInp) navInputs.push(pkgInp);
+    const focusField = (node) => { if (node) { node.focus(); if (node.select) node.select(); } };
+    navInputs.forEach((node, idx) => {
+      const isText = node === noteInp;   // note is the only text field
+      node.addEventListener("keydown", (e) => {
+        // selectionStart is only readable on text inputs — guard number fields.
+        const atStart = !isText || (node.selectionStart === 0 && node.selectionEnd === 0);
+        const atEnd = !isText || (node.selectionStart === node.value.length && node.selectionEnd === node.value.length);
+        if (e.key === "ArrowRight" && atEnd) { e.preventDefault(); focusField(navInputs[idx + 1]); }
+        else if (e.key === "ArrowLeft" && atStart) { e.preventDefault(); focusField(navInputs[idx - 1]); }
+      });
+    });
+
+    // Hint strip — spells out the keyboard flow so the shortcut is discoverable.
+    const hint = el("div.pos-pv-hint");
+    hint.appendChild(el("span", { html: "<b>←</b> <b>→</b> move field" }));
+    hint.appendChild(el("span", { html: "<b>Enter</b> add" }));
+    hint.appendChild(el("span", { html: "<b>Esc</b> cancel" }));
 
     const acts = el("div.pos-pv-acts");
     acts.appendChild(el("button.btn.ghost.sm", { text: "Cancel", onClick: closePreview }));
     acts.appendChild(el("button.btn.primary.sm", { html: "✓ Add", onClick: addPending }));
     fields.appendChild(acts);
+    fields.appendChild(hint);
     card.appendChild(fields);
 
     // Enter anywhere in the preview adds the line; Esc cancels.

@@ -8,7 +8,7 @@
     "whoami": "wrangler whoami",
     "kv:create": "wrangler kv namespace create BILLING_KV",
     "deploy": "wrangler deploy",
-    "pages": "wrangler pages deploy ../public --project-name retailpro",
+    "pages": "wrangler pages deploy ../public --project-name retailpro --branch main --commit-dirty=true",
     "dev": "wrangler dev",
     "tail": "wrangler tail"
   },
