@@ -250,8 +250,10 @@
 
     // Left: the pay-by-UPI QR sits here, immediately left of the totals box, so
     // the customer scans it right next to the amount they owe. Notes below it.
+    // The QR is shown only on the without-GST (retail/estimate) bill, not on the
+    // GST tax invoice.
     const left = el("div.bottom-left");
-    if (s.upiQr) {
+    if (s.upiQr && !isGst) {
       const qr = el("div.qr-pay");
       qr.appendChild(el("img", { src: s.upiQr, alt: "Scan to pay" }));
       qr.appendChild(el("div.qr-cap", "Scan & Pay"));

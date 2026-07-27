@@ -63,8 +63,11 @@
       const overlay = el("div.lock-screen");
       const card = el("div.lock-card");
       const brandLogo = (App.store.settings() || {}).logo || App.DEFAULT_LOGO || "";
-      card.appendChild(el("div.lock-logo", brandLogo ? [el("img", { src: brandLogo })] : (App.store.settings().businessName || "R")[0]));
-      card.appendChild(el("h2", App.store.settings().businessName || "RetailPro"));
+      // Login screen shows the retail crackers brand (SRI EZHUMALAIYAN CRACKERS),
+      // falling back to the GST traders name if the retail name isn't set.
+      const brandName = (App.store.settings() || {}).retailBusinessName || (App.store.settings() || {}).businessName || "RetailPro";
+      card.appendChild(el("div.lock-logo", brandLogo ? [el("img", { src: brandLogo })] : (brandName || "R")[0]));
+      card.appendChild(el("h2", brandName));
       card.appendChild(el("p.muted", "Enter your password to unlock"));
 
       const form = el("div.lock-form");

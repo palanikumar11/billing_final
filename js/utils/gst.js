@@ -96,6 +96,19 @@
       });
     }
 
+    // Manual GST override — the user typed a taxable Amount + a GST amount
+    // directly on the bill (Manual mode) instead of letting it be computed from
+    // each line's GST%. We keep the per-line breakdown (for the item table) but
+    // replace the bill-level taxable + tax with the entered figures, split into
+    // CGST/SGST (intra) or IGST (inter) the same way automatic GST is.
+    if (gstEnabled && opts.manualGst && (Number(opts.manualGst.taxable) || Number(opts.manualGst.gstAmount))) {
+      taxable = Number(opts.manualGst.taxable) || 0;
+      const mtax = Number(opts.manualGst.gstAmount) || 0;
+      cgst = intra ? mtax / 2 : 0;
+      sgst = intra ? mtax / 2 : 0;
+      igst = intra ? 0 : mtax;
+    }
+
     // Bill-level discount applied on taxable proportionally? Keep simple: subtract from grand.
     let billDiscount = 0;
     if (opts.billDiscountPct) billDiscount += taxable * (Number(opts.billDiscountPct) / 100);

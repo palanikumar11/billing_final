@@ -24,6 +24,9 @@
       cust: { name: "", mobile: "", city: "", gstin: "", address: "", pin: "" },   // inline entry
       billState: s.state || "Tamil Nadu",   // place of supply (drives split vs IGST)
       billDiscountPct: 0, billDiscountAmt: 0, packagingPct: 0, roundOff: s.autoRoundOff === true,
+      // GST entry: "auto" computes tax from each line's GST%; "manual" lets the
+      // user type a taxable Amount + GST%, with the GST amount auto-filled.
+      gstMode: "auto", manualTaxable: 0, manualGstPct: Number(s.defaultGstRate) || 18, manualGstAmt: 0,
       taxInclusive: !!s.priceIncludesTax, paymentMode: "Cash", paid: null, split: null,
       note: "", editingId: null,
       date: F.todayISO(), numberOverride: "",
@@ -58,7 +61,10 @@
       { customerState: st.billState || s.state || "Tamil Nadu", homeState: s.state || "Tamil Nadu",
         billDiscountPct: st.billDiscountPct, billDiscountAmt: st.billDiscountAmt, roundOff: st.roundOff,
         packagingPct: st.type === "gst" ? 0 : st.packagingPct,   // packaging % — Without-GST only
-        gstEnabled: st.type === "gst" }   // "Without GST" bill carries no tax
+        gstEnabled: st.type === "gst",   // "Without GST" bill carries no tax
+        // Manual GST override (GST bill only) — taxable + GST amount typed by hand.
+        manualGst: st.type === "gst" && st.gstMode === "manual"
+          ? { taxable: st.manualTaxable, gstAmount: st.manualGstAmt } : null }
     );
   }
 
@@ -779,16 +785,86 @@
     tbl.appendChild(tb); host.appendChild(tbl);
   }
 
+  // GST entry mode: Auto (tax from line GST%) vs Manual (type Amount + GST%,
+  // GST amount auto-fills and stays editable). GST bill only.
+  function drawGstMode(host, t) {
+    const wrap = el("div", { style: { margin: "6px 0", padding: "6px", border: "1px solid var(--border)", borderRadius: "8px" } });
+    const seg = el("div", { style: { display: "flex", gap: "6px", marginBottom: st.gstMode === "manual" ? "8px" : "0" } });
+    [["auto", "Auto GST"], ["manual", "Manual GST"]].forEach(([m, lbl]) => {
+      seg.appendChild(el("button.btn.sm" + (st.gstMode === m ? ".primary" : ""), { text: lbl, onClick: () => {
+        if (st.gstMode === m) return;
+        st.gstMode = m;
+        if (m === "manual") {
+          // Seed the manual fields from the current auto totals so switching is smooth.
+          if (!Number(st.manualTaxable)) st.manualTaxable = F.round2(t.taxable || 0);
+          if (!Number(st.manualGstAmt)) st.manualGstAmt = F.round2((t.taxable || 0) * (Number(st.manualGstPct) || 0) / 100);
+          st._mgstFocus = "amt";   // land on Amount when Manual opens
+        }
+        drawTotals();
+      } }));
+    });
+    wrap.appendChild(seg);
+
+    if (st.gstMode === "manual") {
+      const numInp = (val, ph, w) => el("input", { type: "number", step: "any", min: "0", value: val || val === 0 ? val : "", placeholder: ph, style: { height: "30px", width: w, fontSize: "12px" } });
+      const amtInp = numInp(st.manualTaxable, "0", "100px");
+      const pctInp = numInp(st.manualGstPct, "18", "60px");
+      const gstInp = numInp(st.manualGstAmt, "0", "100px");
+      const byKey = { amt: amtInp, pct: pctInp, gst: gstInp };
+      const order = ["amt", "pct", "gst"];
+      // Amount or % changed -> recompute GST amount automatically.
+      const recalc = () => { st.manualGstAmt = F.round2((Number(st.manualTaxable) || 0) * (Number(st.manualGstPct) || 0) / 100); gstInp.value = st.manualGstAmt; drawTotals(); };
+      amtInp.addEventListener("input", () => { st.manualTaxable = Number(amtInp.value) || 0; st._mgstFocus = "amt"; recalc(); });
+      pctInp.addEventListener("input", () => { st.manualGstPct = Number(pctInp.value) || 0; st._mgstFocus = "pct"; recalc(); });
+      // GST amount typed by hand -> keep it as an override (does not touch %).
+      gstInp.addEventListener("input", () => { st.manualGstAmt = Number(gstInp.value) || 0; st._mgstFocus = "gst"; drawTotals(); });
+      // Remember which field is active so a totals rebuild can restore focus.
+      order.forEach((k) => byKey[k].addEventListener("focus", () => { st._mgstFocus = k; }));
+
+      // ← / → step BACKWARD / FORWARD across Amount → GST% → GST₹, so the whole
+      // manual entry fills from the keyboard, mirroring the cart line fields.
+      order.forEach((k, i) => {
+        byKey[k].addEventListener("keydown", (e) => {
+          if (e.key === "ArrowRight") { const n = byKey[order[i + 1]]; if (n) { e.preventDefault(); st._mgstFocus = order[i + 1]; n.focus(); n.select && n.select(); } }
+          else if (e.key === "ArrowLeft") { const p = byKey[order[i - 1]]; if (p) { e.preventDefault(); st._mgstFocus = order[i - 1]; p.focus(); p.select && p.select(); } }
+        });
+      });
+
+      const fld = (lbl, inp) => el("label", { style: { display: "flex", alignItems: "center", gap: "5px", fontSize: "12px" } }, [el("span.muted", lbl), inp]);
+      const row = el("div", { style: { display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" } }, [
+        fld("Amount ₹", amtInp), fld("GST %", pctInp), fld("GST ₹", gstInp),
+      ]);
+      wrap.appendChild(row);
+      wrap.appendChild(el("div.muted", { style: { fontSize: "11px", marginTop: "4px" } }, "Enter Amount + GST % — GST ₹ fills in automatically. ← → move between fields."));
+
+      // Typing rebuilds the totals (and these inputs); restore focus + caret so
+      // keystrokes and arrow navigation aren't interrupted.
+      if (st._mgstFocus && byKey[st._mgstFocus]) {
+        const node = byKey[st._mgstFocus];
+        setTimeout(() => { if (!node.isConnected) return; node.focus(); const v = node.value; try { node.setSelectionRange(v.length, v.length); } catch (e) {} }, 0);
+      }
+    }
+    host.appendChild(wrap);
+  }
+
   function drawTotals() {
     const host = st._hosts.totalsHost; host.innerHTML = "";
     const t = totals(); st._t = t;
     const rowT = (k, v, strong) => el("div", { style: { display: "flex", justifyContent: "space-between", padding: "3px 0", fontSize: strong ? "15px" : "13px", fontWeight: strong ? 800 : 400 } }, [el("span", { class: strong ? "" : "muted" }, k), el("span.mono", v)]);
     host.appendChild(rowT("Sub Total", F.money(t.subTotal)));
     if (t.totalDiscount) host.appendChild(rowT("Discount", "- " + F.money(t.totalDiscount)));
+    // GST entry mode toggle (GST bill only): Auto = tax from each line's GST%,
+    // Manual = user types the taxable Amount + GST% and the GST amount fills in.
+    if (st.type === "gst") drawGstMode(host, t);
     if (st.type === "gst") host.appendChild(rowT("Taxable", F.money(t.taxable)));
     if (st.type === "gst") {
-      if (t.intra) { host.appendChild(rowT("CGST 9%", F.money(t.cgst))); host.appendChild(rowT("SGST 9%", F.money(t.sgst))); }
-      else host.appendChild(rowT("IGST 18%", F.money(t.igst)));
+      // In Manual mode the % label reflects the rate the user typed; in Auto it
+      // stays the standard 9/9 (intra) or 18 (inter) split.
+      const man = st.gstMode === "manual";
+      const full = man ? (Number(st.manualGstPct) || 0) : 18;
+      const half = man ? full / 2 : 9;
+      if (t.intra) { host.appendChild(rowT("CGST " + half + "%", F.money(t.cgst))); host.appendChild(rowT("SGST " + half + "%", F.money(t.sgst))); }
+      else host.appendChild(rowT("IGST " + full + "%", F.money(t.igst)));
     }
     if (t.packaging) host.appendChild(rowT("Packaging" + (t.packagingPct ? " " + t.packagingPct + "%" : ""), F.money(t.packaging)));
     if (t.roundOff) host.appendChild(rowT("Round Off", (t.roundOff > 0 ? "+" : "-") + F.money(Math.abs(t.roundOff))));
@@ -808,6 +884,9 @@
     // extra controls
     const ctl = el("div", { style: { display: "flex", gap: "10px", marginTop: "8px", flexWrap: "wrap", fontSize: "12px" } });
     const discInp = el("input", { type: "number", value: st.billDiscountAmt || "", placeholder: "0", style: { height: "30px", width: "90px" } });
+    // Focusing another totals control releases the manual-GST focus lock so the
+    // rebuild doesn't yank the caret back into the GST fields.
+    discInp.addEventListener("focus", () => { st._mgstFocus = null; });
     discInp.addEventListener("input", (e) => { st.billDiscountAmt = Number(e.target.value) || 0; drawTotals(); });
     ctl.appendChild(el("label", { style: { display: "flex", alignItems: "center", gap: "5px" } }, [document.createTextNode("Bill Disc ₹"), discInp]));
     // Packaging charges (%) — Without-GST bills only
@@ -818,12 +897,12 @@
     }
     const roLabel = el("label", { style: { display: "flex", alignItems: "center", gap: "5px" } });
     const ro = el("input", { type: "checkbox" }); ro.checked = st.roundOff;
-    ro.addEventListener("change", (e) => { st.roundOff = e.target.checked; drawTotals(); });
+    ro.addEventListener("change", (e) => { st._mgstFocus = null; st.roundOff = e.target.checked; drawTotals(); });
     roLabel.appendChild(ro); roLabel.appendChild(document.createTextNode("Round off"));
     ctl.appendChild(roLabel);
     const tiLabel = el("label", { style: { display: "flex", alignItems: "center", gap: "5px" } });
     const ti = el("input", { type: "checkbox" }); ti.checked = st.taxInclusive;
-    ti.addEventListener("change", (e) => { st.taxInclusive = e.target.checked; recompute(); });
+    ti.addEventListener("change", (e) => { st._mgstFocus = null; st.taxInclusive = e.target.checked; recompute(); });
     tiLabel.appendChild(ti); tiLabel.appendChild(document.createTextNode("Price incl. tax"));
     ctl.appendChild(tiLabel);
     host.appendChild(ctl);

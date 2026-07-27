@@ -36,7 +36,7 @@
 .inv-head .logo-fallback { width: 66px; height: 66px; border-radius: 12px; background: #4f46e5; color: #fff; display: grid; place-items: center; font-size: 26px; font-weight: 800; }
 .inv-head .co { flex: 1; }
 .inv-head .co h1 { font-size: 21px; font-weight: 800; letter-spacing: -.01em; color: #111; }
-.inv-head .co .co-line { font-size: 10.5px; color: #333; }
+.inv-head .co .co-line { font-size: 10.5px; color: #1e1e1e; font-weight: 500; }
 .inv-head .co .co-reg { font-size: 10.5px; margin-top: 3px; }
 .inv-head .co .co-reg b { color: #111; }
 /* Invoice No / Date live here, top-right of the header — on GST and non-GST alike. */
@@ -51,7 +51,7 @@
 .inv-meta .cell:last-child { border-right: none; }
 .inv-meta .cell.span2 { grid-column: span 2; border-right: none; border-top: 1px solid #e2e2e2; }
 .inv-meta .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #777; font-weight: 700; }
-.inv-meta .val { font-size: 11px; color: #111; }
+.inv-meta .val { font-size: 11px; color: #111; font-weight: 500; }
 .inv-meta .party-name { font-weight: 700; font-size: 12px; }
 
 .parties { display: grid; grid-template-columns: 1fr 1fr; margin-top: 10px; border: 1px solid #cfcfcf; }
@@ -59,12 +59,12 @@
 .parties .p-col + .p-col { border-left: 1px solid #e2e2e2; }
 .parties .p-title { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #777; font-weight: 700; margin-bottom: 3px; }
 .parties .p-name { font-weight: 700; font-size: 12.5px; }
-.parties .p-line { font-size: 10.5px; color: #333; }
+.parties .p-line { font-size: 10.5px; color: #1e1e1e; font-weight: 500; }
 
 /* ---- Items table ---- */
 table.inv-items {
   width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 10px;
-  font-size: 10.5px; border: 1px solid #9aa1ab;
+  font-size: 11px; border: 1px solid #9aa1ab;
 }
 table.inv-items th, table.inv-items td { border: 1px solid #d5d9df; padding: 6px 8px; vertical-align: top; }
 /* Header band — light background, bold dark text, printed with exact colours */
@@ -76,7 +76,7 @@ table.inv-items thead th {
 }
 table.inv-items td.r, table.inv-items th.r { text-align: right; font-variant-numeric: tabular-nums; }
 table.inv-items td.c, table.inv-items th.c { text-align: center; }
-table.inv-items tbody td { color: #222; }
+table.inv-items tbody td { color: #161616; font-weight: 500; }
 table.inv-items tbody tr:nth-child(even) td { background: #f7f9fb; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 table.inv-items tbody td { height: 20px; }   /* even row rhythm, whatever the item count */
 table.inv-items .desc { font-weight: 600; word-wrap: break-word; overflow-wrap: anywhere; }
@@ -103,12 +103,12 @@ table.inv-items tfoot td.lbl { text-align: right; text-transform: uppercase; let
 .tax-summary th, .tax-summary td { border: 1px solid #cfcfcf; padding: 4px 6px; text-align: right; }
 .tax-summary th { background: #f0f2f6; text-align: center; }
 .totals-box { border: 1px solid #cfcfcf; }
-.totals-box .trow { display: flex; justify-content: space-between; padding: 6px 12px; font-size: 11px; border-bottom: 1px solid #eee; }
-.totals-box .trow .k { color: #444; }
+.totals-box .trow { display: flex; justify-content: space-between; padding: 6px 12px; font-size: 11.5px; font-weight: 500; border-bottom: 1px solid #eee; }
+.totals-box .trow .k { color: #333; }
 .totals-box .trow.grand { background: #111; color: #fff; font-weight: 800; font-size: 14px; padding: 8px 12px; border-bottom: none; }
 .totals-box .trow.grand .k { color: #fff; }
 
-.amt-words { border: 1px solid #cfcfcf; padding: 7px 12px; margin-top: 8px; font-size: 11px; }
+.amt-words { border: 1px solid #cfcfcf; padding: 7px 12px; margin-top: 8px; font-size: 11px; font-weight: 500; color: #161616; }
 .amt-words b { text-transform: uppercase; }
 
 /* Important notice — bold strip printed on every bill (GST & Without-GST) */
@@ -135,7 +135,7 @@ table.inv-items tfoot td.lbl { text-align: right; text-transform: uppercase; let
 .inv-foot .sign-area .sign-line { border-top: 1px solid #999; margin-top: auto; padding-top: 5px; font-size: 10px; }
 .stamp-img { position: absolute; opacity: .85; max-width: 96px; max-height: 96px; }
 
-.thanks { text-align: center; font-size: 11px; margin-top: 10px; color: #333; font-weight: 600; }
+.thanks { text-align: center; font-size: 11px; margin-top: 10px; color: #1e1e1e; font-weight: 600; }
 .terms { font-size: 9px; color: #666; margin-top: 6px; border-top: 1px dashed #ccc; padding-top: 5px; }
 
 /* Retail-specific compactness */
