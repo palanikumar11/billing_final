@@ -30,7 +30,12 @@
 .copy-label { position: absolute; top: 8mm; right: 12mm; font-size: 10px; font-weight: 700; color: #444; border: 1px solid #888; padding: 2px 9px; border-radius: 4px; text-transform: uppercase; letter-spacing: .04em; z-index: 2; }
 
 /* ---- Header ---- */
+/* GST tax invoice: logo centered on top of the header row. */
+.inv-logo-center { display: flex; justify-content: center; padding-bottom: 8px; }
+.inv-logo-center .logo-box { width: 150px; height: 92px; display: grid; place-items: center; }
+.inv-logo-center .logo-box img { width: 100%; height: 100%; object-fit: contain; }
 .inv-head { display: flex; gap: 14px; align-items: flex-start; border-bottom: 2px solid #222; padding-bottom: 10px; }
+.co-web { color: #1a4fd6; word-break: break-all; }
 .inv-head .logo-box { width: 108px; height: 80px; flex-shrink: 0; display: grid; place-items: center; }
 .inv-head .logo-box img { width: 100%; height: 100%; object-fit: contain; }
 .inv-head .logo-fallback { width: 66px; height: 66px; border-radius: 12px; background: #4f46e5; color: #fff; display: grid; place-items: center; font-size: 26px; font-weight: 800; }

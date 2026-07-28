@@ -82,8 +82,15 @@
     page.appendChild(inner);
 
     // ---- Header ----
+    // GST tax invoice prints the logo centered on top of the header; the
+    // Without-GST / Estimate bill keeps the compact left-aligned logo.
+    if (isGst) {
+      const logoRow = el("div.inv-logo-center");
+      logoRow.appendChild(logoNode(s, "logo-box"));
+      inner.appendChild(logoRow);
+    }
     const head = el("div.inv-head");
-    head.appendChild(logoNode(s, "logo-box"));
+    if (!isGst) head.appendChild(logoNode(s, "logo-box"));
     const co = el("div.co");
     co.appendChild(el("h1", name));
     if (s.contactPerson) co.appendChild(el("div.co-line", s.contactPerson));
@@ -95,7 +102,13 @@
     const place = [s.city, s.state].filter(Boolean).join(", ");
     const placeLine = [road, [place, s.pin].filter(Boolean).join(" - ")].filter(Boolean).join(", ");
     if (placeLine) co.appendChild(el("div.co-line", placeLine));
-    co.appendChild(el("div.co-line", [s.phone && ("☎ " + s.phone), s.email && ("✉ " + s.email), s.website].filter(Boolean).join("   ")));
+    co.appendChild(el("div.co-line", [s.phone && ("☎ " + s.phone), s.email && ("✉ " + s.email)].filter(Boolean).join("   ")));
+    // Website prints on its OWN line, right under the phone/email, with a globe
+    // icon — "🌐 https://example.com".
+    if (s.website) {
+      const site = /^https?:\/\//i.test(s.website) ? s.website : "https://" + s.website;
+      co.appendChild(el("div.co-line.co-web", "🌐 " + site));
+    }
     const reg = el("div.co-reg");
     if (isGst && s.gstin) reg.innerHTML = `<b>GSTIN:</b> ${esc(s.gstin)}` + (s.pan ? `　<b>PAN:</b> ${esc(s.pan)}` : "");
     co.appendChild(reg);
@@ -267,7 +280,9 @@
     const trow = (k, v, cls) => { const r = el("div.trow" + (cls ? "." + cls : "")); r.appendChild(el("span.k", k)); r.appendChild(el("span.mono", v)); return r; };
     tb2.appendChild(trow("Sub Total", F.num(t.subTotal)));
     if (t.totalDiscount) tb2.appendChild(trow("Discount", "- " + F.num(t.totalDiscount)));
-    tb2.appendChild(trow("Taxable Value", F.num(t.taxable)));
+    // Taxable Value is a GST concept — the Without-GST / retail bill has no tax,
+    // so this row is omitted there (Sub Total already shows the net amount).
+    if (isGst) tb2.appendChild(trow("Taxable Value", F.num(t.taxable)));
     if (isGst) {
       if (t.intra) { tb2.appendChild(trow("CGST", F.num(t.cgst))); tb2.appendChild(trow("SGST", F.num(t.sgst))); }
       else tb2.appendChild(trow("IGST", F.num(t.igst)));

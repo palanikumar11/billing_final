@@ -710,6 +710,10 @@
     const tb = el("tbody");
     const t = totals();
     st._amountCells = [];
+    // Flat list of every editable numeric field in the cart, row by row
+    // (Qty → Rate → Disc% for line 1, then line 2, …). ← / → walk this list so a
+    // whole bill can be corrected from the keyboard without reaching for the mouse.
+    const navCells = [];
     st.items.forEach((it, idx) => {
       const line = t.lines[idx];
       const tr = el("tr");
@@ -771,6 +775,7 @@
       const di = el("input", { type: "number", value: it.discountPct, step: "any" });
       di.addEventListener("input", (e) => { it.discountPct = Number(e.target.value) || 0; liveUpdate(); });
       dTd.appendChild(di); tr.appendChild(dTd);
+      navCells.push(qi, ri, di);   // Qty → Rate → Disc% for ← / → navigation
       // amount
       const amtTd = el("td.num.mono", { style: { fontWeight: 700 } }, F.num(lineAmt(line)));
       st._amountCells[idx] = amtTd;
@@ -782,6 +787,19 @@
       tb.appendChild(tr);
       if (it.stock != null && it.qty > it.stock) tr.style.background = "var(--danger-soft)";
     });
+
+    // ← / → step BACKWARD / FORWARD through every cart field, flowing from the
+    // end of one row into the start of the next. These are number inputs, so the
+    // arrows have no caret to move — hijacking them is safe. liveUpdate() edits in
+    // place (no table rebuild), so these node references stay valid while typing.
+    const focusCell = (node) => { if (node) { node.focus(); if (node.select) node.select(); } };
+    navCells.forEach((node, i) => {
+      node.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight") { e.preventDefault(); focusCell(navCells[i + 1]); }
+        else if (e.key === "ArrowLeft") { e.preventDefault(); focusCell(navCells[i - 1]); }
+      });
+    });
+
     tbl.appendChild(tb); host.appendChild(tbl);
   }
 
