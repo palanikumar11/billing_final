@@ -103,11 +103,13 @@
     const placeLine = [road, [place, s.pin].filter(Boolean).join(" - ")].filter(Boolean).join(", ");
     if (placeLine) co.appendChild(el("div.co-line", placeLine));
     co.appendChild(el("div.co-line", [s.phone && ("☎ " + s.phone), s.email && ("✉ " + s.email)].filter(Boolean).join("   ")));
-    // Website prints on its OWN line, right under the phone/email, with a globe
-    // icon — "🌐 https://example.com".
+    // Website prints on its OWN line, right under the phone/email, led by an
+    // inline SVG globe (world) icon — renders crisply in the PDF (unlike the
+    // emoji) and only appears once a website is set in Settings.
     if (s.website) {
       const site = /^https?:\/\//i.test(s.website) ? s.website : "https://" + s.website;
-      co.appendChild(el("div.co-line.co-web", "🌐 " + site));
+      const globe = '<svg class="co-web-ic" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><ellipse cx="12" cy="12" rx="4" ry="9"/></svg>';
+      co.appendChild(el("div.co-line.co-web", { html: globe + " " + esc(site) }));
     }
     const reg = el("div.co-reg");
     if (isGst && s.gstin) reg.innerHTML = `<b>GSTIN:</b> ${esc(s.gstin)}` + (s.pan ? `　<b>PAN:</b> ${esc(s.pan)}` : "");

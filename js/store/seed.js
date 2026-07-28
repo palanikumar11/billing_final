@@ -69,56 +69,12 @@
     };
   }
 
-  function demoData(store) {
-    // Crackers catalogue — HSN 3604 (fireworks), GST 18%.
-    // [name, category, unit, purchase, selling, mrp, stock, minStock]
-    const products = [
-      ["Flower Pots (Big) - 10 Pcs", "Flower Pots", "BOX", 90, 140, 180, 120, 20],
-      ["Flower Pots (Special) - 10 Pcs", "Flower Pots", "BOX", 130, 195, 250, 100, 20],
-      ["Ground Chakkar (Big) - 10 Pcs", "Ground Chakkar", "BOX", 70, 110, 150, 150, 25],
-      ["Ground Chakkar (Special) - 10 Pcs", "Ground Chakkar", "BOX", 100, 160, 210, 90, 20],
-      ["Sparklers 15 cm - 10 Pcs", "Sparklers", "PKT", 18, 30, 40, 400, 50],
-      ["Sparklers 30 cm Colour - 10 Pcs", "Sparklers", "PKT", 35, 55, 75, 300, 50],
-      ["One Sound Crackers (4\") - 10 Pcs", "Sound Crackers", "PKT", 25, 40, 55, 250, 40],
-      ["Bijili Crackers - 100 Pcs", "Sound Crackers", "PKT", 45, 70, 95, 200, 30],
-      ["Atom Bomb - 10 Pcs", "Sound Crackers", "BOX", 110, 170, 220, 120, 20],
-      ["Rocket Bomb - 10 Pcs", "Rockets", "BOX", 95, 150, 195, 100, 20],
-      ["Whistling Rocket - 10 Pcs", "Rockets", "BOX", 140, 220, 280, 80, 15],
-      ["Twinkling Star - 10 Pcs", "Fancy / Aerial", "BOX", 60, 95, 125, 150, 25],
-      ["7 Shot Fancy", "Fancy / Aerial", "PCS", 120, 190, 250, 60, 10],
-      ["30 Shot Fancy", "Fancy / Aerial", "PCS", 380, 580, 750, 40, 8],
-      ["Garland 1000 Wala", "Garlands", "PCS", 350, 550, 720, 50, 10],
-      ["Garland 5000 Wala", "Garlands", "PCS", 1500, 2300, 2950, 20, 5],
-      ["Kids Special Gift Box (25 Items)", "Gift Boxes", "BOX", 450, 700, 900, 60, 10],
-      ["Family Gift Box (50 Items)", "Gift Boxes", "BOX", 900, 1400, 1800, 40, 8],
-    ];
-    products.forEach((p, i) => {
-      store.upsert("products", {
-        name: p[0], code: "C" + String(1001 + i), sku: "SKU" + (1001 + i),
-        category: p[1], hsn: "3604", gstRate: 18, unit: p[2],
-        purchasePrice: p[3], sellingPrice: p[4], mrp: p[5], stock: p[6], minStock: p[7],
-        image: "", description: "", favorite: i < 4,
-      });
-    });
-
-    const customers = [
-      ["Ramesh Traders", "9840012345", "Tamil Nadu", "600028", "33AAGCR1234K1Z2"],
-      ["Sundar Stores", "9791023456", "Tamil Nadu", "641001", ""],
-      ["Kerala Wholesale Co", "9847034567", "Kerala", "682001", "32AAECK9876L1Z9"],
-      ["Mumbai Retail LLP", "9820045678", "Maharashtra", "400001", "27AAFCM5432P1Z1"],
-    ];
-    customers.forEach((c) => store.upsert("customers", {
-      name: c[0], mobile: c[1], email: "", address: "", state: c[2], pin: c[3], gstin: c[4],
-      pan: "", creditLimit: 50000, outstanding: 0,
-    }));
-
-    const suppliers = [
-      ["Anand Distributors", "33AAACA1111A1Z5", "9840099001", "Tamil Nadu"],
-      ["National Supplies", "29AAACN2222B1Z6", "9880099002", "Karnataka"],
-    ];
-    suppliers.forEach((s) => store.upsert("suppliers", {
-      name: s[0], gstin: s[1], phone: s[2], state: s[3], address: "", outstanding: 0,
-    }));
+  // Demo catalogue removed — the app now starts CLEAN with no sample products,
+  // customers or suppliers. This means data the user deletes is never silently
+  // re-added on the next load. Kept as a no-op so the boot sequence (app.js) that
+  // calls it stays intact; add your own data from Products / Customers / Suppliers.
+  function demoData(_store) {
+    /* intentionally empty — clean install, no seed data */
   }
 
   App.seed = { defaultSettings, demoData };

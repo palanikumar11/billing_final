@@ -268,7 +268,12 @@ README.md             short project overview
 ## 11. Recent changes
 
 - **GST invoice header:** logo is now **centered** on top; the website prints on
-  its **own line with a 🌐 globe icon** and is normalised to `https://…`.
+  its **own line led by an inline SVG world/globe icon** (renders crisply in the
+  PDF) and is normalised to `https://…`. The line only appears once a website is
+  set in Settings.
+- **Clean install:** demo seed data (sample products/customers/suppliers) has been
+  removed. The app now starts **empty**, so data you delete is never re-added on
+  the next load. (Cloud sync still mirrors your own data if a Worker URL is set.)
 - **Retail bill:** the **"Taxable Value"** total row is now hidden on
   Without-GST / retail bills (it's a GST-only concept; Sub Total already shows the
   net amount).
