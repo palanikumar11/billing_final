@@ -6,6 +6,11 @@
 (function () {
   const App = (window.App = window.App || {});
 
+  // Local-only collections. Products are managed per device: they are never
+  // pushed to the cloud and never restored from it, so deleting a product
+  // sticks — the next sync/restore cannot re-create it.
+  const NO_SYNC = ["products"];
+
   function cfg() {
     const s = App.store.settings() || {};
     return { url: (s.workerUrl || "").replace(/\/$/, ""), token: s.syncToken || "", auto: !!s.autoSync };
@@ -30,6 +35,7 @@
   function push(collection, data) {
     const { url, auto } = cfg();
     if (!url || !auto) return;
+    if (NO_SYNC.includes(collection)) return;
     pending[collection] = data;
     clearTimeout(flushTimer);
     flushTimer = setTimeout(flushPending, 1200);
@@ -55,6 +61,7 @@
     const { url, token } = cfg();
     if (!url) throw new Error("Worker URL not configured");
     const snapshot = App.store.exportAll();
+    NO_SYNC.forEach((c) => delete snapshot[c]);
     const res = await fetch(url + "/api/backup", { method: "PUT", headers: headers(token), body: JSON.stringify(snapshot) });
     if (!res.ok) throw new Error("Push failed: " + res.status);
     return res.json().catch(() => ({}));
@@ -65,7 +72,11 @@
     if (!url) throw new Error("Worker URL not configured");
     const res = await fetch(url + "/api/backup", { headers: headers(token) });
     if (!res.ok) throw new Error("Pull failed: " + res.status);
-    return res.json();
+    const data = await res.json();
+    // Strip local-only collections from cloud data so a pull can never
+    // overwrite or re-add products on this device.
+    if (data && typeof data === "object") NO_SYNC.forEach((c) => delete data[c]);
+    return data;
   }
 
   async function test() {

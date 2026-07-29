@@ -137,6 +137,44 @@
       return rec;
     },
 
+    // Remove duplicate customers — same mobile number (last 10 digits), or same
+    // name when neither record has a mobile. Keeps the most recently updated
+    // record, fills its blank fields from the duplicates, and re-points every
+    // invoice at the surviving record. Returns how many duplicates were removed.
+    dedupeCustomers() {
+      const arr = cache.customers || [];
+      const keyOf = (c) => {
+        const ph = String(c.mobile || c.phone || "").replace(/\D/g, "");
+        if (ph.length >= 6) return "m:" + ph.slice(-10);
+        const nm = String(c.name || "").trim().toLowerCase().replace(/\s+/g, " ");
+        return nm ? "n:" + nm : null;
+      };
+      const kept = new Map();
+      const remap = {}; // dropped id -> kept id
+      for (const c of arr) {
+        const k = keyOf(c) || "id:" + c.id;
+        const prev = kept.get(k);
+        if (!prev) { kept.set(k, c); continue; }
+        const newer = String(c.updatedAt || "") >= String(prev.updatedAt || "") ? c : prev;
+        const older = newer === c ? prev : c;
+        Object.keys(older).forEach((f) => { if (newer[f] == null || newer[f] === "") newer[f] = older[f]; });
+        remap[older.id] = newer.id;
+        kept.set(k, newer);
+      }
+      const dropped = Object.keys(remap).length;
+      if (!dropped) return 0;
+      const resolve = (id) => { let n = 0; while (remap[id] && n++ < 20) id = remap[id]; return id; };
+      cache.customers = [...kept.values()];
+      let invTouched = false;
+      (cache.invoices || []).forEach((inv) => {
+        if (inv.customerId && remap[inv.customerId]) { inv.customerId = resolve(inv.customerId); invTouched = true; }
+      });
+      scheduleSave("customers");
+      if (invTouched) scheduleSave("invoices");
+      emit("change:customers");
+      return dropped;
+    },
+
     saveSettings(patch) {
       cache.settings = { ...(cache.settings || {}), ...patch, updatedAt: App.format.nowTS() };
       scheduleSave("settings");
@@ -160,6 +198,8 @@
           cache[c] = [...byId.values()];
         } else cache[c] = data[c];
       }
+      const dups = store.dedupeCustomers();
+      if (dups) console.info("Removed " + dups + " duplicate customer(s) during import");
       dirty.add("settings"); COLLECTIONS.forEach((c) => dirty.add(c));
       await flush();
       emit("imported");

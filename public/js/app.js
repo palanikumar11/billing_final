@@ -158,7 +158,9 @@
       if (!c.url) return;
       const cloud = await App.sync.pullAll();
       if (!cloud || typeof cloud !== "object") return;
-      const cols = ["invoices", "products", "customers", "suppliers", "purchases", "expenses", "stockMoves"];
+      // Products are local-only (never restored from cloud) — deleting one must stick.
+      delete cloud.products;
+      const cols = ["invoices", "customers", "suppliers", "purchases", "expenses", "stockMoves"];
       const cloudCount = cols.reduce((n, k) => n + (Array.isArray(cloud[k]) ? cloud[k].length : 0), 0);
       if (!cloudCount) return; // nothing in the cloud yet — keep local as-is
       const localCount = ["invoices", "products", "customers"].reduce((n, k) => n + App.store.all(k).length, 0);
@@ -182,6 +184,10 @@
       // is the source of truth; otherwise we merge so no local-only record is lost.
       // No-op when offline or when the cloud has nothing yet.
       await tryCloudRestore();
+
+      // Clean up any duplicate customers that accumulated from earlier merges.
+      const dupCount = App.store.dedupeCustomers();
+      if (dupCount) console.info("Removed " + dupCount + " duplicate customer(s)");
 
       // Seed demo catalogue only on a genuine first run with nothing in the cloud.
       if (firstRun && !App.store.all("products").length && !App.store.all("invoices").length) {

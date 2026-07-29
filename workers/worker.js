@@ -17,7 +17,10 @@
  *   - (optional) R2 bucket BILLING_R2 for large asset/backup blobs
  */
 
-const COLLECTIONS = ["settings", "products", "customers", "suppliers", "invoices", "purchases", "expenses", "stockMoves"];
+// "products" is intentionally NOT synced — products live only on the device.
+// The cloud keeps history (invoices), customers and the other records, so a
+// product deleted in the app can never be re-created by a later sync/restore.
+const COLLECTIONS = ["settings", "customers", "suppliers", "invoices", "purchases", "expenses", "stockMoves"];
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
