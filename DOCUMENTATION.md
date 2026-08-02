@@ -73,7 +73,7 @@ Navigation groups (from the sidebar):
 ### Master Data
 | Screen | Route | What it does |
 |--------|-------|--------------|
-| **Products** | `products` | Product catalogue — name, HSN, GST%, price, stock, min-stock, unit. Import/export. |
+| **Products** | `products` | Product catalogue — name, HSN, GST%, price, stock, min-stock, unit. Import/export. Numeric fields (GST %, prices, stock) accept **decimals** (e.g. GST `12.5`). |
 | **Customers** | `customers` | Customer records — name, mobile, GSTIN, state, address. Powers billing auto-fill. |
 | **Suppliers** | `suppliers` | Supplier records used on purchase entries. |
 

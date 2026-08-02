@@ -134,6 +134,7 @@
     } else {
       meta.appendChild(mcell("Served By", name || "—"));   // retail/estimate → CRACKERS name
     }
+    if (inv.vehicleNo) meta.appendChild(mcell("Vehicle No.", inv.vehicleNo));
     inner.appendChild(meta);
 
     // ---- Parties ----

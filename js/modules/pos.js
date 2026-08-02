@@ -29,7 +29,7 @@
       gstMode: "auto", manualTaxable: 0, manualGstPct: Number(s.defaultGstRate) || 18, manualGstAmt: 0,
       taxInclusive: !!s.priceIncludesTax, paymentMode: "Cash", paid: null, split: null,
       note: "", editingId: null,
-      date: F.todayISO(), numberOverride: "",
+      date: F.todayISO(), numberOverride: "", vehicleNo: "",
     };
   }
 
@@ -471,6 +471,13 @@
     })()]);
     row.appendChild(numField); row.appendChild(dateField);
     host.appendChild(row);
+    const vehField = el("div.field", { style: { marginTop: "6px" } }, [el("label", "Vehicle No. (optional)"), (function () {
+      const i = el("input", { value: st.vehicleNo || "", placeholder: "e.g. TN 59 AB 1234" });
+      i.style.cssText = "text-transform:uppercase";
+      i.addEventListener("input", (e) => { st.vehicleNo = e.target.value.toUpperCase(); });
+      return i;
+    })()]);
+    host.appendChild(vehField);
     host.appendChild(el("div.hint", { style: { fontSize: "11px", marginTop: "4px" }, class: "muted" }, "Leave the number to auto-generate, or type your own."));
   }
 
@@ -1021,7 +1028,7 @@
       customerAddress: cu.address || "", customerPin: cu.pin || "",
       items: t.lines.map((l) => ({ productId: l.productId, name: l.name, hsn: l.hsn, unit: l.unit, qty: l.qty, price: l.price, discount: l.discount, gstRate: l.gstRate, cgst: l.cgst, sgst: l.sgst, igst: l.igst, taxable: l.taxable, amount: l.amount, note: l.note })),
       totals: t, paymentMode: st.paymentMode, split: st.split, paid: F.round2(paid), note: st.note, status: "active",
-      servedBy: s.businessName,
+      servedBy: s.businessName, vehicleNo: (st.vehicleNo || "").trim(),
     };
     App.store.upsert("invoices", inv);
     if (main) App.store.saveSettings({ nextInvoiceNo: (s.nextInvoiceNo || 1) + 1 });

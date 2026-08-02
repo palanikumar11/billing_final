@@ -112,7 +112,9 @@
       field.appendChild(el("label", { html: esc(label) + (req ? ' <span class="req">*</span>' : "") }));
       let input;
       if (type === "textarea") input = el("textarea");
-      else input = el("input", { type });
+      // step:"any" lets number fields (GST %, prices, stock) accept decimals
+      // like 12.5 — without it the browser defaults to step=1 and rejects them.
+      else input = el("input", type === "number" ? { type, step: "any" } : { type });
       input.value = p[key] != null ? p[key] : (key === "gstRate" ? s.defaultGstRate : key === "minStock" ? s.lowStockThresholdDefault : "");
       inputs[key] = input;
       field.appendChild(input);
