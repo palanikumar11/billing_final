@@ -483,6 +483,25 @@ table.cart-table td.num.mono { font-weight: 800; color: var(--fg); }
 .icon-btn.cart-rm:hover { background: var(--danger-soft); color: var(--danger); border-color: transparent; transform: none; box-shadow: none; }
 .icon-btn.cart-rm svg { width: 14px; height: 14px; }
 
+/* Line inputs styled to match the clean customer-column fields — bordered,
+   rounded, right-aligned, with a blue focus ring. Roomier rows, clearer name. */
+table.cart-table td { padding-top: 11px; padding-bottom: 11px; }
+table.cart-table .cart-name { font-size: 13px; font-weight: 700; letter-spacing: -.01em; }
+table.cart-table .cart-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; font-size: 10.5px; color: var(--fg-muted); margin-top: 3px; }
+table.cart-table td.num > input {
+  height: 34px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--fg); font-weight: 600; text-align: right;
+  transition: var(--transition);
+}
+table.cart-table td.num > input:hover { border-color: var(--border-strong); }
+table.cart-table td.num > input:focus { border-color: var(--brand); box-shadow: var(--ring); outline: none; }
+table.cart-table tbody tr:hover { background: color-mix(in srgb, var(--brand-soft) 45%, transparent); }
+/* Inline GST% chip on the line reads like a small pill, not a bare box */
+.cart-gst { height: 21px; border-radius: 6px; background: var(--surface-2); font-weight: 700; }
+.cart-gst:focus { border-color: var(--brand); box-shadow: var(--ring); outline: none; background: var(--surface); }
+/* Note field — clean on focus, matching the customer inputs */
+.cart-note:focus { border-style: solid; border-color: var(--brand); box-shadow: var(--ring); background: var(--surface); }
+
 /* ---- POS customer-details column — labeled fields + quick-fill panel ---- */
 .pos-cust .card-title { font-size: 14px; }
 .pos-cf { margin-bottom: 11px; }
