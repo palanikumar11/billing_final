@@ -58,9 +58,9 @@
         <td class="num">${ps.length}</td>
         <td class="num mono">${out > 0.5 ? '<span class="badge-pill amber">' + F.money(out) + "</span>" : '<span class="muted">—</span>'}</td>`;
       const act = el("td"); const ra = el("div.row-actions");
-      ra.appendChild(el("button.icon-btn", { title: "History", html: "🕘", style: { width: "30px", height: "30px" }, onClick: () => openView(c.id) }));
-      ra.appendChild(el("button.icon-btn", { title: "Edit", html: "✎", style: { width: "30px", height: "30px" }, onClick: () => openEdit(c.id) }));
-      ra.appendChild(el("button.icon-btn", { title: "Delete", html: "🗑", style: { width: "30px", height: "30px" }, onClick: () => remove(c.id) }));
+      ra.appendChild(el("button.icon-btn", { title: "History", html: App.icons.get("history"), style: { width: "30px", height: "30px" }, onClick: () => openView(c.id) }));
+      ra.appendChild(el("button.icon-btn", { title: "Edit", html: App.icons.get("edit"), style: { width: "30px", height: "30px" }, onClick: () => openEdit(c.id) }));
+      ra.appendChild(el("button.icon-btn", { title: "Delete", html: App.icons.get("delete"), style: { width: "30px", height: "30px" }, onClick: () => remove(c.id) }));
       act.appendChild(ra); tr.appendChild(act); tb.appendChild(tr);
     });
     tbl.appendChild(tb); tw.appendChild(tbl); host.appendChild(tw);

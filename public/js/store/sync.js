@@ -6,10 +6,11 @@
 (function () {
   const App = (window.App = window.App || {});
 
-  // Local-only collections. Products are managed per device: they are never
-  // pushed to the cloud and never restored from it, so deleting a product
-  // sticks — the next sync/restore cannot re-create it.
-  const NO_SYNC = ["products"];
+  // Nothing is held back — every collection (products included) is pushed to
+  // and pulled from the cloud, so a backup covers all your data. Duplicate
+  // products from a restore are collapsed by store.dedupeProducts() on import,
+  // and with auto-sync on a delete is pushed immediately so it stays deleted.
+  const NO_SYNC = [];
 
   function cfg() {
     const s = App.store.settings() || {};

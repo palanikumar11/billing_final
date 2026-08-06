@@ -65,6 +65,7 @@
     const bulkCount = el("b", "0 selected");
     bulk.appendChild(bulkCount);
     bulk.appendChild(el("div", { style: { flex: "1" } }));
+    bulk.appendChild(el("button.btn.sm", { html: "⬇ Download PDF", onClick: bulkDownloadPDF }));
     bulk.appendChild(el("button.btn.sm", { html: "⬇ Download CSV", onClick: bulkDownloadCSV }));
     bulk.appendChild(el("button.btn.sm.danger", { html: "🗑 Delete Selected", onClick: bulkDelete }));
     bulk.appendChild(el("button.btn.sm.ghost", { html: "Clear", onClick: () => { selected.clear(); draw(host); } }));
@@ -95,10 +96,10 @@
       tr.querySelector(".selcol").appendChild(cb);
       tr.querySelectorAll("td")[1].addEventListener("click", () => openView(i.id));
       const act = el("td"); const ra = el("div.row-actions");
-      ra.appendChild(el("button.icon-btn", { title: "View", html: "👁", style: { width: "30px", height: "30px" }, onClick: () => openView(i.id) }));
-      ra.appendChild(el("button.icon-btn", { title: "Download PDF", html: "⬇", style: { width: "30px", height: "30px" }, onClick: () => App.invoices.downloadPDF(i) }));
-      ra.appendChild(el("button.icon-btn", { title: "Print", html: "🖨", style: { width: "30px", height: "30px" }, onClick: () => App.invoices.print(i) }));
-      ra.appendChild(el("button.icon-btn", { title: "Delete", html: "🗑", style: { width: "30px", height: "30px" }, onClick: () => deleteBill(i.id) }));
+      ra.appendChild(el("button.icon-btn", { title: "View", html: App.icons.get("view"), style: { width: "30px", height: "30px" }, onClick: () => openView(i.id) }));
+      ra.appendChild(el("button.icon-btn", { title: "Download PDF", html: App.icons.get("download"), style: { width: "30px", height: "30px" }, onClick: () => App.invoices.downloadPDF(i) }));
+      ra.appendChild(el("button.icon-btn", { title: "Print", html: App.icons.get("print"), style: { width: "30px", height: "30px" }, onClick: () => App.invoices.print(i) }));
+      ra.appendChild(el("button.icon-btn", { title: "Delete", html: App.icons.get("delete"), style: { width: "30px", height: "30px" }, onClick: () => deleteBill(i.id) }));
       act.appendChild(ra); tr.appendChild(act); tb.appendChild(tr);
     });
     tbl.appendChild(tb); tw.appendChild(tbl); host.appendChild(tw);
@@ -154,6 +155,20 @@
     if (!rows.length) { App.toast.info("Select some bills first"); return; }
     download("bills_selected_" + F.todayISO() + ".csv", App.csv.stringify(rows), "text/csv");
     App.toast.success("Downloaded " + rows.length + " bill" + (rows.length === 1 ? "" : "s"));
+  }
+
+  // Download a PDF for each ticked bill. Files are generated one after another
+  // (small stagger) so the browser doesn't drop concurrent downloads.
+  async function bulkDownloadPDF() {
+    const ids = new Set(selected);
+    const bills = App.store.all("invoices").filter((i) => ids.has(i.id));
+    if (!bills.length) { App.toast.info("Select some bills first"); return; }
+    App.toast.info("Preparing " + bills.length + " PDF" + (bills.length === 1 ? "" : "s") + "…");
+    for (const i of bills) {
+      try { await App.invoices.downloadPDF(i); } catch (e) { console.warn("PDF failed for", i.number, e); }
+      await new Promise((r) => setTimeout(r, 350));
+    }
+    App.toast.success("Downloaded " + bills.length + " PDF" + (bills.length === 1 ? "" : "s"));
   }
 
   function openView(id) {

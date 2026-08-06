@@ -56,7 +56,7 @@
         <td class="num">${F.num(p.stock, p.stock % 1 ? 2 : 0)} ${esc(p.unit || "")}</td><td class="num muted">${F.num(p.minStock, 0)}</td>
         <td class="num mono">${F.money((Number(p.stock) || 0) * (Number(p.purchasePrice) || 0))}</td><td>${status}</td>`;
       const act = el("td");
-      act.appendChild(el("button.icon-btn", { title: "Adjust", html: "±", style: { width: "30px", height: "30px" }, onClick: () => App.modules.products.openEdit(p.id) }));
+      act.appendChild(el("button.icon-btn", { title: "Adjust", html: App.icons.get("adjust"), style: { width: "30px", height: "30px" }, onClick: () => App.modules.products.openEdit(p.id) }));
       tr.appendChild(act); tb.appendChild(tr);
     });
     tbl.appendChild(tb); tw.appendChild(tbl); host.appendChild(tw);

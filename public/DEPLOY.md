@@ -9,14 +9,14 @@ Wrangler 3.114 is already installed locally in `workers/` (works with your Node 
 Every command below is copy-paste. On Windows, run them in **PowerShell** or paste them
 into the Claude prompt with a leading `!` so the output is captured.
 
-> Tip: all `npm --prefix "C:\billing\workers" run <x>` commands work from any folder.
+> Tip: all `npm --prefix "C:\xampp\htdocs\billing_final\workers" run <x>` commands work from any folder.
 
 ---
 
 ## STEP 0 — Log in to Cloudflare (one time)
 
 ```
-npm --prefix "C:\billing\workers" run login
+npm --prefix "C:\xampp\htdocs\billing_final\workers" run login
 ```
 
 A browser opens → sign in as **vedizone@gmail.com** → click **Allow**.
@@ -25,7 +25,7 @@ You should see “Successfully logged in.”
 Verify:
 
 ```
-npm --prefix "C:\billing\workers" run whoami
+npm --prefix "C:\xampp\htdocs\billing_final\workers" run whoami
 ```
 
 It should print your account email and account ID.
@@ -35,7 +35,7 @@ It should print your account email and account ID.
 ## STEP 1 — Create the KV namespace (permanent storage)
 
 ```
-npm --prefix "C:\billing\workers" run kv:create
+npm --prefix "C:\xampp\htdocs\billing_final\workers" run kv:create
 ```
 
 Output looks like:
@@ -54,7 +54,7 @@ Copy the **id** value.
 
 ## STEP 2 — Put the KV id into the config
 
-Open `C:\billing\workers\wrangler.toml` and replace the placeholder:
+Open `C:\xampp\htdocs\billing_final\workers\wrangler.toml` and replace the placeholder:
 
 ```
 [[kv_namespaces]]
@@ -69,7 +69,7 @@ id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"   <-- paste the id here
 ## STEP 3 — (Optional) Set an API token so the backend isn't public
 
 ```
-npm --prefix "C:\billing\workers" exec -- wrangler secret put SYNC_TOKEN
+npm --prefix "C:\xampp\htdocs\billing_final\workers" exec -- wrangler secret put SYNC_TOKEN
 ```
 
 It asks you to type a secret value — enter any strong password and press Enter.
@@ -81,7 +81,7 @@ Remember it; you'll paste the same value into the app later.
 ## STEP 4 — Deploy the Worker (backend)
 
 ```
-npm --prefix "C:\billing\workers" run deploy
+npm --prefix "C:\xampp\htdocs\billing_final\workers" run deploy
 ```
 
 At the end it prints the live URL, e.g.:
@@ -99,7 +99,7 @@ Published retailpro-api
 ## STEP 5 — Deploy the frontend (Pages)
 
 ```
-npm --prefix "C:\billing\workers" run pages
+npm --prefix "C:\xampp\htdocs\billing_final\workers" run pages
 ```
 
 The first time it creates a project named **retailpro** and uploads the clean
@@ -115,8 +115,8 @@ before you connect the Worker.
 
 > If you change the app source later, re-stage and redeploy:
 > ```
-> Copy-Item C:\billing\index.html,C:\billing\css,C:\billing\js,C:\billing\assets C:\billing\public -Recurse -Force
-> npm --prefix "C:\billing\workers" run pages
+> Copy-Item C:\xampp\htdocs\billing_final\index.html,C:\xampp\htdocs\billing_final\css,C:\xampp\htdocs\billing_final\js,C:\xampp\htdocs\billing_final\assets C:\xampp\htdocs\billing_final\public -Recurse -Force
+> npm --prefix "C:\xampp\htdocs\billing_final\workers" run pages
 > ```
 
 ---
@@ -139,7 +139,7 @@ Done. Your data now lives permanently in Cloudflare KV and syncs automatically.
 If you'd rather not use the terminal:
 
 - **Pages:** dashboard.cloudflare.com → *Workers & Pages* → *Create* → *Pages* →
-  *Upload assets* → drag the **`C:\billing\public`** folder → *Deploy*.
+  *Upload assets* → drag the **`C:\xampp\htdocs\billing_final\public`** folder → *Deploy*.
 - **Worker:** *Create* → *Workers* → paste the contents of `workers/worker.js` →
   under *Settings → Variables → KV Namespace Bindings*, add binding `BILLING_KV`
   to a namespace you create in *Storage & Databases → KV*.

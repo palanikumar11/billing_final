@@ -62,6 +62,21 @@
   const dirty = new Set();
   let saveTimer = null;
 
+  // Normalise a product name/code for duplicate detection: lower-cased, spaces
+  // collapsed, and common "copy" decorations stripped so a duplicated or lightly
+  // renamed product ("Sparkler", "Sparkler (Copy)", "Sparkler (2)", "Sparkler - copy")
+  // all collapse to the same key. Kept conservative — size/spec digits that carry
+  // meaning (e.g. "Sparkler 10cm") are preserved so distinct products never merge.
+  function normName(v) {
+    return String(v == null ? "" : v)
+      .trim().toLowerCase()
+      .replace(/\s+/g, " ")
+      .replace(/\s*[-–]?\s*\(?\s*(?:copy|duplicate)\s*\d*\s*\)?\s*$/i, "")  // "(copy)", "- copy 2"
+      .replace(/\s*\(\s*\d+\s*\)\s*$/i, "")                                   // trailing "(2)"
+      .replace(/[.,\-–_]+$/g, "")                                             // trailing punctuation
+      .trim();
+  }
+
   function on(evt, fn) { (listeners[evt] = listeners[evt] || new Set()).add(fn); return () => listeners[evt].delete(fn); }
   function emit(evt, payload) {
     (listeners[evt] || []).forEach((fn) => { try { fn(payload); } catch (e) { console.error(e); } });
@@ -92,7 +107,7 @@
   }
 
   const store = {
-    on, emit, load, flush,
+    on, emit, load, flush, normName,
 
     // Collections (return live array reference — treat as read-only for iteration)
     all: (c) => cache[c] || [],
@@ -175,6 +190,50 @@
       return dropped;
     },
 
+    // Remove duplicate products — same product code (or SKU), or the same
+    // name+HSN when no code exists. Keeps the most recently updated record,
+    // fills its blank fields from the duplicates, and re-points every invoice
+    // line and stock movement at the surviving record. This is what stops a
+    // backup restore/import from piling up twin products (and makes a delete
+    // stick everywhere instead of leaving a hidden copy in Inventory).
+    // Returns how many duplicates were removed.
+    dedupeProducts() {
+      const arr = cache.products || [];
+      const norm = (v) => normName(v);
+      const keyOf = (p) => {
+        const code = norm(p.code); if (code) return "c:" + code;
+        const sku = norm(p.sku); if (sku) return "s:" + sku;
+        const nm = norm(p.name); if (nm) return "n:" + nm + "|" + norm(p.hsn);
+        return null;
+      };
+      const kept = new Map();
+      const remap = {}; // dropped id -> kept id
+      for (const p of arr) {
+        const k = keyOf(p) || "id:" + p.id;
+        const prev = kept.get(k);
+        if (!prev) { kept.set(k, p); continue; }
+        const newer = String(p.updatedAt || "") >= String(prev.updatedAt || "") ? p : prev;
+        const older = newer === p ? prev : p;
+        Object.keys(older).forEach((f) => { if (newer[f] == null || newer[f] === "") newer[f] = older[f]; });
+        remap[older.id] = newer.id;
+        kept.set(k, newer);
+      }
+      const dropped = Object.keys(remap).length;
+      if (!dropped) return 0;
+      const resolve = (id) => { let n = 0; while (remap[id] && n++ < 20) id = remap[id]; return id; };
+      cache.products = [...kept.values()];
+      let invTouched = false, mvTouched = false;
+      (cache.invoices || []).forEach((inv) => {
+        (inv.items || []).forEach((it) => { if (it.productId && remap[it.productId]) { it.productId = resolve(it.productId); invTouched = true; } });
+      });
+      (cache.stockMoves || []).forEach((m) => { if (m.productId && remap[m.productId]) { m.productId = resolve(m.productId); mvTouched = true; } });
+      scheduleSave("products");
+      if (invTouched) scheduleSave("invoices");
+      if (mvTouched) scheduleSave("stockMoves");
+      emit("change:products");
+      return dropped;
+    },
+
     saveSettings(patch) {
       cache.settings = { ...(cache.settings || {}), ...patch, updatedAt: App.format.nowTS() };
       scheduleSave("settings");
@@ -200,6 +259,8 @@
       }
       const dups = store.dedupeCustomers();
       if (dups) console.info("Removed " + dups + " duplicate customer(s) during import");
+      const pdups = store.dedupeProducts();
+      if (pdups) console.info("Removed " + pdups + " duplicate product(s) during import");
       dirty.add("settings"); COLLECTIONS.forEach((c) => dirty.add(c));
       await flush();
       emit("imported");

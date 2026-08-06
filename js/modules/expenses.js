@@ -44,8 +44,8 @@
         const tr = el("tr");
         tr.innerHTML = `<td>${F.fmtDate(e.date)}</td><td><span class="chip">${esc(e.category)}</span></td><td>${esc(e.note || "")}</td><td class="num mono">${F.money(e.amount)}</td>`;
         const act = el("td"); const ra = el("div.row-actions");
-        ra.appendChild(el("button.icon-btn", { html: "✎", style: { width: "30px", height: "30px" }, onClick: () => openEntry(e.id) }));
-        ra.appendChild(el("button.icon-btn", { html: "🗑", style: { width: "30px", height: "30px" }, onClick: () => { const rm = App.store.remove("expenses", e.id); App.ui.refresh("expenses"); App.ui.navigate("expenses"); App.toast.show({ type: "warn", title: "Expense deleted", message: F.money(e.amount), action: "Undo", onAction: () => { App.store.restore("expenses", rm); App.ui.refresh("expenses"); App.ui.navigate("expenses"); } }); } }));
+        ra.appendChild(el("button.icon-btn", { title: "Edit", html: App.icons.get("edit"), style: { width: "30px", height: "30px" }, onClick: () => openEntry(e.id) }));
+        ra.appendChild(el("button.icon-btn", { title: "Delete", html: App.icons.get("delete"), style: { width: "30px", height: "30px" }, onClick: () => { const rm = App.store.remove("expenses", e.id); App.ui.refresh("expenses"); App.ui.navigate("expenses"); App.toast.show({ type: "warn", title: "Expense deleted", message: F.money(e.amount), action: "Undo", onAction: () => { App.store.restore("expenses", rm); App.ui.refresh("expenses"); App.ui.navigate("expenses"); } }); } }));
         act.appendChild(ra); tr.appendChild(act); tb.appendChild(tr);
       });
       tbl.appendChild(tb); tw.appendChild(tbl); wrap.appendChild(tw);

@@ -37,6 +37,7 @@
     wrap.appendChild(el("div.page-head", [
       el("div", [el("h2", "Products"), el("div.sub", App.store.all("products").length + " products in catalogue")]),
       el("div.actions", [
+        el("button.btn", { html: "⧉ Remove Duplicates", title: "Merge duplicate products (same code / name) into one", onClick: removeDuplicates }),
         el("button.btn", { html: "⬆ Import", onClick: importMenu }),
         el("button.btn", { html: "⬇ Export", onClick: exportMenu }),
         el("button.btn.primary", { html: "＋ Add Product", onClick: () => openEdit() }),
@@ -91,10 +92,10 @@
         <td class="num"><span class="badge-pill ${lowCls}">${F.num(p.stock, p.stock % 1 ? 2 : 0)} ${esc(p.unit || "")}</span></td>`;
       const act = el("td");
       const ra = el("div.row-actions");
-      ra.appendChild(el("button.icon-btn", { title: "Stock adjust", html: "±", style: { width: "30px", height: "30px" }, onClick: () => adjustStock(p.id) }));
-      ra.appendChild(el("button.icon-btn", { title: "Edit", html: "✎", style: { width: "30px", height: "30px" }, onClick: () => openEdit(p.id) }));
-      ra.appendChild(el("button.icon-btn", { title: "Duplicate", html: "⧉", style: { width: "30px", height: "30px" }, onClick: () => duplicate(p.id) }));
-      ra.appendChild(el("button.icon-btn", { title: "Delete", html: "🗑", style: { width: "30px", height: "30px" }, onClick: () => remove(p.id) }));
+      ra.appendChild(el("button.icon-btn", { title: "Stock adjust", html: App.icons.get("adjust"), style: { width: "30px", height: "30px" }, onClick: () => adjustStock(p.id) }));
+      ra.appendChild(el("button.icon-btn", { title: "Edit", html: App.icons.get("edit"), style: { width: "30px", height: "30px" }, onClick: () => openEdit(p.id) }));
+      ra.appendChild(el("button.icon-btn", { title: "Duplicate", html: App.icons.get("duplicate"), style: { width: "30px", height: "30px" }, onClick: () => duplicate(p.id) }));
+      ra.appendChild(el("button.icon-btn", { title: "Delete", html: App.icons.get("delete"), style: { width: "30px", height: "30px" }, onClick: () => remove(p.id) }));
       act.appendChild(ra); tr.appendChild(act);
       tb.appendChild(tr);
     });
@@ -145,6 +146,20 @@
     copy.name = p.name + " (Copy)"; copy.code = ""; copy.sku = "";
     App.store.upsert("products", copy);
     App.toast.success("Duplicated " + p.name);
+    App.ui.refresh("products"); App.ui.navigate("products");
+  }
+
+  async function removeDuplicates() {
+    // Count duplicates first so we can tell the user what will happen.
+    const norm = (v) => App.store.normName(v);
+    const keyOf = (p) => norm(p.code) ? "c:" + norm(p.code) : norm(p.sku) ? "s:" + norm(p.sku) : norm(p.name) ? "n:" + norm(p.name) + "|" + norm(p.hsn) : "id:" + p.id;
+    const seen = new Set(); let dupes = 0;
+    App.store.all("products").forEach((p) => { const k = keyOf(p); if (seen.has(k)) dupes++; else seen.add(k); });
+    if (!dupes) { App.toast.info("No duplicate products found"); return; }
+    const ok = await App.modal.confirm({ title: "Remove Duplicate Products", message: `Found ${dupes} duplicate product${dupes > 1 ? "s" : ""} (same code / name). Merge each set into a single record? Bills and stock history stay linked to the surviving product.`, confirmText: "Merge Duplicates", danger: false });
+    if (!ok) return;
+    const removed = App.store.dedupeProducts();
+    App.toast.success(`Merged ${removed} duplicate product${removed > 1 ? "s" : ""}`);
     App.ui.refresh("products"); App.ui.navigate("products");
   }
 

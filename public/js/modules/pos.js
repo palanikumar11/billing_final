@@ -111,12 +111,17 @@
     left.appendChild(gridWrap);
 
     // Items in Bill (cart) + totals — on the LEFT, under the products
-    const billCard = el("div.card.pad", { style: { flexShrink: "0", padding: "14px" } });
-    billCard.appendChild(el("div.card-title", { style: { margin: "0 0 6px" } }, "Items in Bill"));
+    const billCard = el("div.card.pad.pos-bill", { style: { flexShrink: "0", padding: "16px" } });
+    const billHead = el("div.pos-bill-head");
+    billHead.appendChild(el("div.card-title", { style: { margin: "0" } }, "Items in Bill"));
+    const cartCount = el("span.cart-count", "0 items");
+    billHead.appendChild(cartCount);
+    billCard.appendChild(billHead);
+    st._cartCount = cartCount;
     // minHeight stops this scroll container from collapsing to 0 (flexbox min-height:auto trap).
-    const cartHost = el("div", { style: { maxHeight: "30vh", minHeight: "56px", overflowY: "auto", overflowX: "hidden", margin: "0 -4px" } });
+    const cartHost = el("div", { style: { maxHeight: "34vh", minHeight: "56px", overflowY: "auto", overflowX: "hidden", margin: "0 -4px" } });
     billCard.appendChild(cartHost);
-    billCard.appendChild(el("div.divider", { style: { margin: "6px 0" } }));
+    billCard.appendChild(el("div.divider", { style: { margin: "10px 0 8px" } }));
     const totalsHost = el("div"); billCard.appendChild(totalsHost);
     left.appendChild(billCard);
     wrap.appendChild(left);
@@ -483,14 +488,15 @@
 
   function drawCustomer() {
     const host = st._hosts.custBlock; host.innerHTML = "";
-    host.appendChild(el("div.card-title", { style: { marginBottom: "8px" } }, "Customer Details"));
+    host.classList.add("pos-cust");
+    host.appendChild(el("div.card-title", { style: { marginBottom: "10px" } }, "Customer Details"));
 
     // Pick an existing customer to auto-fill (optional)
-    const sel = el("select", { style: { width: "100%", marginBottom: "8px" } });
+    const sel = el("select.pos-cf-input");
     sel.appendChild(el("option", { value: "" }, "＋ New / Walk-in (type below)"));
     App.store.all("customers").slice().sort((a, b) => a.name.localeCompare(b.name)).forEach((c) => sel.appendChild(el("option", { value: c.id, selected: st.customerId === c.id }, `${c.name}${c.mobile ? " · " + c.mobile : ""}`)));
     sel.addEventListener("change", (e) => { setCustomer(e.target.value); });
-    host.appendChild(sel);
+    host.appendChild(el("div.pos-cf", [el("label.pos-cf-lbl", "Saved Customer"), sel]));
 
     // Enter in the GSTIN / mobile box fetches the customer right away — a partial
     // number is enough as long as it matches exactly one saved customer. Once the
@@ -510,54 +516,59 @@
     };
     sel.addEventListener("keydown", stepOnEnter);
 
-    // Inline detail fields
+    // Labeled detail-field builder. Appends a <label>+<input> block to `target`
+    // (the customer column by default) and returns the input for further wiring.
     const refs = {};
-    const field = (key, ph, type) => {
-      const i = el("input", { type: type || "text", placeholder: ph, value: st.cust[key] || "" });
-      i.style.cssText = "width:100%;height:36px;padding:0 10px;margin-bottom:6px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--fg);font-size:13px";
+    const field = (key, label, ph, type, target) => {
+      const i = el("input.pos-cf-input", { type: type || "text", placeholder: ph, value: st.cust[key] || "" });
       i.addEventListener("input", (e) => { st.cust[key] = e.target.value; });
       i.addEventListener("keydown", stepOnEnter);
       seq.push(i); refs[key] = i;
+      (target || host).appendChild(el("div.pos-cf", [el("label.pos-cf-lbl", label), i]));
       return i;
     };
 
-    // Lookup fields come first. Either one identifies a saved customer and pulls
-    // the rest of the details in, so all that's left to do is add products:
+    const ctx = () => ({ refs, sel, stateSel, updateBadge });
+
+    // Smart auto-fill panel — a highlighted box holding the lookup fields. Either
+    // one identifies a saved customer and pulls the rest of the details in:
     //   GST bill      -> GSTIN or mobile number
     //   Without GST   -> mobile number
-    const ctx = () => ({ refs, sel, stateSel, updateBadge });
+    const lookup = el("div.pos-cust-lookup");
+    lookup.appendChild(el("div.pos-cust-lookup-h", [el("span", "⚡"), el("span", "Quick fill — find a saved customer")]));
+    host.appendChild(lookup);
     if (st.type === "gst") {
-      const g = field("gstin", "Customer GSTIN — details fill in automatically", "text");
-      g.style.textTransform = "uppercase";
+      const g = field("gstin", "Customer GSTIN", "22AAAAA0000A1Z5", "text", lookup);
+      g.classList.add("upper");
       g.addEventListener("input", (e) => {
         const v = gstKey(e.target.value);
         e.target.value = v; st.cust.gstin = v;
         applyGstin(v, ctx());
       });
-      host.appendChild(g);
     }
-    const mob = field("mobile", "Mobile number — details fill in automatically", "tel");
+    const mob = field("mobile", "Mobile Number", "10-digit mobile", "tel", lookup);
     mob.addEventListener("input", (e) => { applyMobile(e.target.value, ctx()); });
-    host.appendChild(mob);
-    host.appendChild(el("div.muted", { style: { fontSize: "11px", margin: "-2px 0 8px" } },
+    lookup.appendChild(el("div.pos-cust-hint",
       st.type === "gst"
-        ? "Enter the GSTIN or the mobile number — a saved customer fills in automatically. State is read from the GSTIN code."
-        : "Enter the mobile number — a saved customer fills in automatically."));
+        ? "GSTIN or mobile fills in a saved customer automatically. State is read from the GSTIN code."
+        : "Mobile number fills in a saved customer automatically."));
 
-    host.appendChild(field("name", "Customer name", "text"));
-    host.appendChild(field("city", "City / Place (e.g. Bengaluru, Mysore)", "text"));
-    if (st.type === "gst") host.appendChild(field("address", "Address (optional)", "text"));
+    field("name", "Customer Name", "Full name", "text");
+    field("city", "City / Place", "e.g. Bengaluru, Mysore", "text");
+    if (st.type === "gst") field("address", "Address", "Street / area (optional)", "text");
 
     // Place of Supply (state) — Tamil Nadu first. State drives CGST+SGST vs IGST.
-    host.appendChild(el("label", { class: "muted", style: { fontSize: "12px", fontWeight: "600", display: "block", margin: "4px 0 4px" } }, "State (for GST — TN = split, others = IGST)"));
-    const stateSel = el("select", { style: { width: "100%" } });
+    const stateWrap = el("div.pos-cf");
+    stateWrap.appendChild(el("label.pos-cf-lbl", "State · Place of Supply"));
+    const stateSel = el("select.pos-cf-input");
     const home = App.store.settings().state || "Tamil Nadu";
     const ordered = [App.gst.STATES.find(([n]) => n === home), ...App.gst.STATES.filter(([n]) => n !== home)].filter(Boolean);
     ordered.forEach(([n]) => stateSel.appendChild(el("option", { value: n, selected: st.billState === n }, n)));
     stateSel.addEventListener("change", (e) => { st.billState = e.target.value; updateBadge(); drawTotals(); });
     stateSel.addEventListener("keydown", stepOnEnter);
     seq.push(stateSel);
-    host.appendChild(stateSel);
+    stateWrap.appendChild(stateSel);
+    host.appendChild(stateWrap);
 
     // Intra/inter-state badge — refreshed in place so autofill never steals focus.
     const badgeHost = el("div", { style: { marginTop: "8px" } });
@@ -711,6 +722,7 @@
 
   function drawCart() {
     const host = st._hosts.cartHost; host.innerHTML = "";
+    if (st._cartCount) st._cartCount.textContent = st.items.length + (st.items.length === 1 ? " item" : " items");
     if (!st.items.length) { host.appendChild(el("div.empty-state", [el("div.big", "🛒"), el("p", "Search to add products."), el("p.muted", { style: { fontSize: "12px" } }, "Tip: press Enter to add the top match instantly.")])); return; }
     const tbl = el("table.data.cart-table");
     tbl.innerHTML = `<thead><tr><th>Item</th><th class="num" style="width:104px">Qty</th><th class="num" style="width:88px">Rate</th><th class="num" style="width:64px">Disc%</th><th class="num" style="width:104px">Amt</th><th style="width:36px"></th></tr></thead>`;
@@ -789,7 +801,7 @@
       tr.appendChild(amtTd);
       // remove
       const rm = el("td");
-      rm.appendChild(el("button.icon-btn", { html: "✕", style: { width: "28px", height: "28px" }, onClick: () => { st.items.splice(idx, 1); recompute(); } }));
+      rm.appendChild(el("button.icon-btn.cart-rm", { title: "Remove", html: App.icons.get("close"), style: { width: "28px", height: "28px" }, onClick: () => { st.items.splice(idx, 1); recompute(); } }));
       tr.appendChild(rm);
       tb.appendChild(tr);
       if (it.stock != null && it.qty > it.stock) tr.style.background = "var(--danger-soft)";

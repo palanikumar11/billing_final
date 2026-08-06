@@ -17,10 +17,10 @@
  *   - (optional) R2 bucket BILLING_R2 for large asset/backup blobs
  */
 
-// "products" is intentionally NOT synced — products live only on the device.
-// The cloud keeps history (invoices), customers and the other records, so a
-// product deleted in the app can never be re-created by a later sync/restore.
-const COLLECTIONS = ["settings", "customers", "suppliers", "invoices", "purchases", "expenses", "stockMoves"];
+// Every collection is backed up to the cloud, products included. Duplicate
+// products are collapsed on the client (store.dedupeProducts) whenever a
+// snapshot is imported, so a restore/sync can never pile up twins.
+const COLLECTIONS = ["settings", "products", "customers", "suppliers", "invoices", "purchases", "expenses", "stockMoves"];
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",

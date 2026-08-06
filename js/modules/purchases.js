@@ -32,8 +32,8 @@
         <td class="num mono">${F.money(p.totals?.taxable || 0)}</td><td class="num mono">${F.money(p.totals?.totalTax || 0)}</td><td class="num mono">${F.money(p.totals?.grandTotal || 0)}</td>
         <td>${p.status === "cancelled" ? '<span class="badge-pill red">Cancelled</span>' : '<span class="badge-pill green">Recorded</span>'}</td>`;
       const act = el("td"); const ra = el("div.row-actions");
-      ra.appendChild(el("button.icon-btn", { title: "Print", html: "🖨", style: { width: "30px", height: "30px" }, onClick: () => App.invoices.print({ ...p, type: "purchase" }) }));
-      ra.appendChild(el("button.icon-btn", { title: "Return / Cancel", html: "↩", style: { width: "30px", height: "30px" }, onClick: () => cancelPurchase(p) }));
+      ra.appendChild(el("button.icon-btn", { title: "Print", html: App.icons.get("print"), style: { width: "30px", height: "30px" }, onClick: () => App.invoices.print({ ...p, type: "purchase" }) }));
+      ra.appendChild(el("button.icon-btn", { title: "Return / Cancel", html: App.icons.get("return"), style: { width: "30px", height: "30px" }, onClick: () => cancelPurchase(p) }));
       act.appendChild(ra); tr.appendChild(act); tb.appendChild(tr);
     });
     tbl.appendChild(tb); tw.appendChild(tbl); host.appendChild(tw);

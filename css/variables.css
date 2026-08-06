@@ -1,63 +1,65 @@
 /* =========================================================================
-   RetailPro design tokens — "Indigo & Amber" identity (v2 redesign)
+   RetailPro design tokens — "Slate & Blue" professional identity (v3)
    Light (default) + dark theme. Toggled via data-theme="dark" on <html>.
+   Neutral slate surfaces + a confident corporate blue, gold kept as a
+   secondary highlight for the crackers/retail branding.
    ========================================================================= */
 :root {
-  /* ---- Brand: deep indigo → violet ---- */
-  --brand: #4f46e5;
-  --brand-600: #4338ca;
-  --brand-700: #3730a3;
-  --brand-soft: #eef1ff;
-  --brand-glow: rgba(79, 70, 229, .35);
+  /* ---- Brand: corporate blue ---- */
+  --brand: #2563eb;
+  --brand-600: #1d4ed8;
+  --brand-700: #1e40af;
+  --brand-soft: #eef4ff;
+  --brand-glow: rgba(37, 99, 235, .30);
 
-  /* ---- Festive amber-gold accent (crackers / retail) ---- */
+  /* ---- Amber-gold accent (crackers / retail highlight) ---- */
   --gold: #d98a0b;
   --gold-600: #b3720a;
   --gold-soft: #fdf2dc;
-  --brand-grad: var(--brand);   /* solid (classic) — was a gradient */
-  --gold-grad: var(--gold);     /* solid (classic) — was a gradient */
+  --brand-grad: var(--brand);   /* solid, flat — corporate */
+  --gold-grad: var(--gold);
   --brand-sheen: var(--brand-soft);
 
   /* ---- Status ---- */
-  --success: #0d9f6e;
-  --success-soft: #e5f7ef;
+  --success: #059669;
+  --success-soft: #e6f6ef;
   --warning: #d97706;
   --warning-soft: #fdf1e0;
-  --danger: #e02424;
+  --danger: #dc2626;
   --danger-soft: #fdeaea;
-  --info: #0e9bbd;
-  --info-soft: #e3f6fb;
+  --info: #0891b2;
+  --info-soft: #e2f4f8;
 
-  /* ---- Surfaces (warm-cool neutral) ---- */
-  --bg: #eef1f8;
+  /* ---- Surfaces (neutral slate) ---- */
+  --bg: #f1f5f9;
   --surface: #ffffff;
-  --surface-2: #f5f7fc;
-  --surface-3: #eceffa;
-  --sidebar: #10142a;
-  --sidebar-fg: #b7bfd8;
-  --sidebar-active: #1c2344;
+  --surface-2: #f8fafc;
+  --surface-3: #eef2f7;
+  --sidebar: #0f172a;
+  --sidebar-fg: #94a3b8;
+  --sidebar-active: #1e293b;
 
-  /* ---- Text ---- */
-  --fg: #141a2e;
-  --fg-muted: #5c6580;
-  --fg-faint: #98a1bd;
+  /* ---- Text (slate) ---- */
+  --fg: #0f172a;
+  --fg-muted: #64748b;
+  --fg-faint: #94a3b8;
 
   /* ---- Lines ---- */
-  --border: #e5e8f2;
-  --border-strong: #cdd3e4;
-  --ring: 0 0 0 3px var(--brand-soft);
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --ring: 0 0 0 3px rgba(37, 99, 235, .18);
 
-  /* ---- Elevation — layered, soft ---- */
-  --shadow-sm: 0 1px 2px rgba(20, 26, 46, .06), 0 1px 1px rgba(20, 26, 46, .04);
-  --shadow: 0 6px 18px -6px rgba(20, 26, 46, .16), 0 2px 6px -2px rgba(20, 26, 46, .08);
-  --shadow-lg: 0 24px 60px -16px rgba(20, 26, 46, .32), 0 8px 20px -8px rgba(20, 26, 46, .18);
-  --shadow-brand: 0 8px 22px -6px var(--brand-glow);
+  /* ---- Elevation — layered, soft, cool-neutral ---- */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .06), 0 1px 1px rgba(15, 23, 42, .04);
+  --shadow: 0 6px 18px -6px rgba(15, 23, 42, .14), 0 2px 6px -2px rgba(15, 23, 42, .08);
+  --shadow-lg: 0 24px 60px -16px rgba(15, 23, 42, .28), 0 8px 20px -8px rgba(15, 23, 42, .16);
+  --shadow-brand: 0 6px 18px -6px var(--brand-glow);
 
-  /* ---- Shape ---- */
-  --radius: 14px;
-  --radius-sm: 10px;
-  --radius-lg: 20px;
-  --radius-xl: 26px;
+  /* ---- Shape — tightened for a crisp, professional feel ---- */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
 
   /* ---- Layout ---- */
   --sidebar-w: 250px;
@@ -65,42 +67,44 @@
   --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
 
-  --transition: .2s cubic-bezier(.4, 0, .2, 1);
+  --transition: .18s cubic-bezier(.4, 0, .2, 1);
   --spring: .34s cubic-bezier(.34, 1.4, .5, 1);
 }
 
 :root[data-theme="dark"] {
-  --brand: #7c83ff;
-  --brand-600: #6870f5;
-  --brand-700: #565ee8;
-  --brand-soft: #1b2143;
-  --brand-glow: rgba(124, 131, 255, .4);
+  --brand: #3b82f6;
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+  --brand-soft: #17233b;
+  --brand-glow: rgba(59, 130, 246, .40);
   --brand-grad: var(--brand);
   --brand-sheen: var(--brand-soft);
 
   --gold-soft: #2e2712;
   --success: #34d399;
-  --success-soft: #10281f;
+  --success-soft: #0f2a20;
+  --warning: #f59e0b;
   --warning-soft: #2c2211;
   --danger: #f26565;
   --danger-soft: #2c1616;
+  --info: #22d3ee;
   --info-soft: #0f2a31;
 
-  --bg: #080b16;
-  --surface: #121728;
-  --surface-2: #0e1322;
-  --surface-3: #182036;
-  --sidebar: #05070f;
-  --sidebar-fg: #9aa3c0;
-  --sidebar-active: #1a2140;
+  --bg: #0b1120;
+  --surface: #131c2e;
+  --surface-2: #0f1729;
+  --surface-3: #1c2740;
+  --sidebar: #070c17;
+  --sidebar-fg: #8b98b0;
+  --sidebar-active: #172136;
 
-  --fg: #e8edf9;
-  --fg-muted: #99a2be;
-  --fg-faint: #616a86;
+  --fg: #e6edf7;
+  --fg-muted: #90a0b8;
+  --fg-faint: #5c6a82;
 
-  --border: #232c46;
-  --border-strong: #35406090;
-  --ring: 0 0 0 3px var(--brand-soft);
+  --border: #1f2b42;
+  --border-strong: #33425f;
+  --ring: 0 0 0 3px rgba(59, 130, 246, .30);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
   --shadow: 0 8px 24px -8px rgba(0, 0, 0, .6);
