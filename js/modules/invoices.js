@@ -82,15 +82,9 @@
     page.appendChild(inner);
 
     // ---- Header ----
-    // GST tax invoice prints the logo centered on top of the header; the
-    // Without-GST / Estimate bill keeps the compact left-aligned logo.
-    if (isGst) {
-      const logoRow = el("div.inv-logo-center");
-      logoRow.appendChild(logoNode(s, "logo-box"));
-      inner.appendChild(logoRow);
-    }
+    // Logo sits in the header, compact left-aligned, for every document type.
     const head = el("div.inv-head");
-    if (!isGst) head.appendChild(logoNode(s, "logo-box"));
+    head.appendChild(logoNode(s, "logo-box"));
     const co = el("div.co");
     co.appendChild(el("h1", name));
     if (s.contactPerson) co.appendChild(el("div.co-line", s.contactPerson));
@@ -281,7 +275,6 @@
     // Right: totals box
     const tb2 = el("div.totals-box");
     const trow = (k, v, cls) => { const r = el("div.trow" + (cls ? "." + cls : "")); r.appendChild(el("span.k", k)); r.appendChild(el("span.mono", v)); return r; };
-    tb2.appendChild(trow("Sub Total", F.num(t.subTotal)));
     if (t.totalDiscount) tb2.appendChild(trow("Discount", "- " + F.num(t.totalDiscount)));
     // Taxable Value is a GST concept — the Without-GST / retail bill has no tax,
     // so this row is omitted there (Sub Total already shows the net amount).

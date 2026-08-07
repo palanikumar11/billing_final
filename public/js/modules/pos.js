@@ -888,7 +888,6 @@
     const host = st._hosts.totalsHost; host.innerHTML = "";
     const t = totals(); st._t = t;
     const rowT = (k, v, strong) => el("div", { style: { display: "flex", justifyContent: "space-between", padding: "3px 0", fontSize: strong ? "15px" : "13px", fontWeight: strong ? 800 : 400 } }, [el("span", { class: strong ? "" : "muted" }, k), el("span.mono", v)]);
-    host.appendChild(rowT("Sub Total", F.money(t.subTotal)));
     if (t.totalDiscount) host.appendChild(rowT("Discount", "- " + F.money(t.totalDiscount)));
     // GST entry mode toggle (GST bill only): Auto = tax from each line's GST%,
     // Manual = user types the taxable Amount + GST% and the GST amount fills in.
