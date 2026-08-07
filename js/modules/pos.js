@@ -927,7 +927,7 @@
     ctl.appendChild(el("label", { style: { display: "flex", alignItems: "center", gap: "5px" } }, [document.createTextNode("Bill Disc ₹"), discInp]));
     // Packaging charges (%) — Without-GST bills only
     if (st.type !== "gst") {
-      const pkgInp = el("input", { type: "number", value: st.packagingPct || "", placeholder: "0", style: { height: "30px", width: "70px" } });
+      const pkgInp = el("input", { type: "number", value: st.packagingPct || "", placeholder: "0", step: "any", min: "0", style: { height: "30px", width: "70px" } });
       pkgInp.addEventListener("input", (e) => { st.packagingPct = Number(e.target.value) || 0; drawTotals(); });
       ctl.appendChild(el("label", { style: { display: "flex", alignItems: "center", gap: "5px" } }, [document.createTextNode("Packaging %"), pkgInp]));
     }
