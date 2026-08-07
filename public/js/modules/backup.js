@@ -31,6 +31,36 @@
     ]));
     wrap.appendChild(local);
 
+    // Automatic local backup
+    const auto = el("div.card.pad", { style: { marginBottom: "16px" } });
+    auto.appendChild(el("div.card-title", "🗄️ Automatic Local Backup"));
+    auto.appendChild(el("div.muted", { style: { fontSize: "13px", marginBottom: "12px" } },
+      "Keeps a dated copy of ALL your data on this device, updated once a day automatically — so even a huge history is safe without relying only on the cloud."));
+    const abCb = el("input", { type: "checkbox" }); abCb.checked = s.autoLocalBackup !== false;
+    abCb.addEventListener("change", () => App.store.saveSettings({ autoLocalBackup: abCb.checked }));
+    auto.appendChild(el("label", { style: { display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px" } },
+      [abCb, document.createTextNode("Enable daily automatic local backup")]));
+    const abStatus = el("div.muted", { style: { fontSize: "13px", marginBottom: "12px", minHeight: "18px" } }, "Checking…");
+    auto.appendChild(abStatus);
+    const abBtns = el("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } });
+    if (fsSupported()) {
+      abBtns.appendChild(el("button.btn.primary", { html: "📁 Choose backup folder", onClick: async () => { await chooseBackupFolder(); App.ui.refresh("backup"); App.ui.navigate("backup"); } }));
+    }
+    abBtns.appendChild(el("button.btn", { html: "⬇ Back up now", onClick: async () => { await runAutoBackup({ force: true, silent: false, gesture: true }); App.ui.refresh("backup"); App.ui.navigate("backup"); } }));
+    auto.appendChild(abBtns);
+    wrap.appendChild(auto);
+    // Fill the status line asynchronously (folder name, last backup, permission).
+    (async () => {
+      const last = await App.db.kvGet(AB_LAST);
+      const handle = await getDirHandle();
+      let line;
+      if (!fsSupported()) line = "This browser saves the daily backup to your Downloads folder.";
+      else if (!handle) line = "⚠ No backup folder chosen yet — click “Choose backup folder” to turn on silent daily backups.";
+      else if (!(await permitted(handle, false))) line = "📁 Folder: " + handle.name + " — permission needs re-authorizing (click “Choose backup folder”).";
+      else line = "📁 Saving to folder: " + handle.name;
+      abStatus.textContent = line + (last ? "   ·   Last backup: " + last : "   ·   No backup yet");
+    })();
+
     // Storage usage meter (reassures the data stays tiny vs Cloudflare's 1 GB free KV)
     const usage = el("div.card.pad", { style: { marginBottom: "16px" } });
     usage.appendChild(el("div.card-title", "📦 Storage Usage"));
@@ -99,6 +129,92 @@
     App.toast.success("Full backup downloaded");
   }
 
+  /* ----------------------------------------------------------------------
+     Automatic local backup — keeps a copy of all data ON THE DEVICE so a
+     large database (tens of thousands of invoices) is never one wipe away
+     from loss, independent of the cloud. Preferred path: the File System
+     Access API writes a dated JSON into a folder you pick once, silently, on
+     app open (at most once/day) and prunes to the last N days. Fallback (no
+     API / no folder): a plain daily download to the Downloads folder.
+     ---------------------------------------------------------------------- */
+  const AB_DIR = "autoBackupDir";     // IndexedDB kv: FileSystemDirectoryHandle
+  const AB_LAST = "autoBackupLast";   // last successful backup date (YYYY-MM-DD)
+  const fsSupported = () => typeof window.showDirectoryPicker === "function";
+
+  async function getDirHandle() { try { return await App.db.kvGet(AB_DIR); } catch (e) { return null; } }
+
+  async function chooseBackupFolder() {
+    if (!fsSupported()) { App.toast.error("This browser can't pick a folder — daily backups will download instead."); return null; }
+    try {
+      const handle = await window.showDirectoryPicker({ mode: "readwrite", id: "retailpro-backup" });
+      await App.db.kvPut(AB_DIR, handle);
+      App.store.saveSettings({ autoLocalBackup: true });
+      await runAutoBackup({ force: true, silent: false });
+      return handle;
+    } catch (e) { return null; } // user cancelled the picker
+  }
+
+  async function permitted(handle, prompt) {
+    if (!handle || !handle.queryPermission) return false;
+    const opts = { mode: "readwrite" };
+    if ((await handle.queryPermission(opts)) === "granted") return true;
+    if (prompt && (await handle.requestPermission(opts)) === "granted") return true;
+    return false;
+  }
+
+  async function writeFile(handle, name, text) {
+    const fh = await handle.getFileHandle(name, { create: true });
+    const w = await fh.createWritable();
+    await w.write(text); await w.close();
+  }
+
+  // Delete dated backups older than `keepDays` so the folder doesn't grow forever.
+  async function pruneOld(handle, keepDays) {
+    try {
+      const cutoff = Date.now() - keepDays * 86400000;
+      for await (const [name, entry] of handle.entries()) {
+        const m = /^retailpro_backup_(\d{4}-\d{2}-\d{2})\.json$/.exec(name);
+        if (!m || entry.kind !== "file") continue;
+        if (new Date(m[1] + "T00:00:00").getTime() < cutoff) { try { await handle.removeEntry(name); } catch (e) {} }
+      }
+    } catch (e) { /* iteration unsupported — skip pruning */ }
+  }
+
+  // gesture=true means this was triggered by a click (so we may prompt for the
+  // folder permission); on silent boot runs we only write if permission is
+  // already granted, never nagging the user with a permission popup at startup.
+  async function runAutoBackup({ force = false, silent = true, gesture = false } = {}) {
+    const s = App.store.settings() || {};
+    if (!force && !s.autoLocalBackup) return { ok: false, reason: "disabled" };
+    const today = F.todayISO();
+    if (!force && (await App.db.kvGet(AB_LAST)) === today) return { ok: true, reason: "already-today" };
+
+    const text = JSON.stringify(App.store.exportAll());
+    const handle = await getDirHandle();
+    try {
+      if (handle && (await permitted(handle, gesture || force))) {
+        await writeFile(handle, "retailpro_backup_" + today + ".json", text);
+        await writeFile(handle, "retailpro_backup_latest.json", text);
+        await pruneOld(handle, Number(s.autoBackupKeepDays) || 14);
+      } else if (handle) {
+        // Folder chosen but permission not granted without a prompt — don't nag on
+        // boot; the Backup page will offer a "re-authorize" button.
+        return { ok: false, reason: "needs-permission" };
+      } else if (!fsSupported()) {
+        download("retailpro_backup_" + today + ".json", text, "application/json"); // fallback
+      } else {
+        return { ok: false, reason: "no-folder" }; // FS supported but no folder picked yet
+      }
+      await App.db.kvPut(AB_LAST, today);
+      if (!silent) App.toast.success("Local backup saved");
+      return { ok: true };
+    } catch (e) {
+      console.warn("auto local backup failed", e);
+      if (!silent) App.toast.error("Local backup failed: " + e.message);
+      return { ok: false, reason: e.message };
+    }
+  }
+
   async function importBackup() {
     const file = await pickFile(".json"); if (!file) return;
     try {
@@ -134,5 +250,5 @@
     App.ui.navigate("dashboard");
   }
 
-  App.modules.backup = { render };
+  App.modules.backup = { render, runAutoBackup, chooseBackupFolder };
 })();

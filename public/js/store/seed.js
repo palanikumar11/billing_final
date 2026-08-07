@@ -55,6 +55,11 @@
       workerUrl: "https://retailpro-api.sriezhumalaiyan.workers.dev",
       syncToken: "ad140752f24e2a0ddbe5cb06c7c255d48285d13dcfcc97ec",
       autoSync: true,
+      // Automatic local backup — writes a dated JSON backup of all data to a
+      // folder you pick once (File System Access API), or falls back to a daily
+      // download. Runs at most once per day on app open. Keeps the last N days.
+      autoLocalBackup: true,
+      autoBackupKeepDays: 14,
       // UI
       theme: "light",
       lowStockThresholdDefault: 5,

@@ -13,10 +13,17 @@ name = "retailpro-api"
 main = "worker.js"
 compatibility_date = "2025-01-01"
 
-# Workers KV — permanent key/value storage for all billing data.
+# Workers KV — legacy storage (kept as a fallback + for one-time migration to D1).
 [[kv_namespaces]]
 binding = "BILLING_KV"
 id = "e1948beb9eee40e58ed50687a60b8ea8"
+
+# D1 (SQLite) — per-record storage with newest-wins merge + delete tombstones.
+# Scales to tens of thousands of invoices across many devices with no data loss.
+[[d1_databases]]
+binding = "DB"
+database_name = "retailpro-db"
+database_id = "b74de850-340d-428b-a03b-1bf6adc8a6fc"
 
 # Optional: R2 bucket for large asset/backup blobs (logos, signatures, full dumps).
 # Uncomment after: wrangler r2 bucket create retailpro-assets

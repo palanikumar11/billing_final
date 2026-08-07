@@ -101,7 +101,8 @@
     // each line's GST%. We keep the per-line breakdown (for the item table) but
     // replace the bill-level taxable + tax with the entered figures, split into
     // CGST/SGST (intra) or IGST (inter) the same way automatic GST is.
-    if (gstEnabled && opts.manualGst && (Number(opts.manualGst.taxable) || Number(opts.manualGst.gstAmount))) {
+    const manualActive = gstEnabled && opts.manualGst && (Number(opts.manualGst.taxable) || Number(opts.manualGst.gstAmount));
+    if (manualActive) {
       taxable = Number(opts.manualGst.taxable) || 0;
       const mtax = Number(opts.manualGst.gstAmount) || 0;
       cgst = intra ? mtax / 2 : 0;
@@ -114,10 +115,12 @@
     if (opts.billDiscountPct) billDiscount += taxable * (Number(opts.billDiscountPct) / 100);
     if (opts.billDiscountAmt) billDiscount += Number(opts.billDiscountAmt);
 
-    // Packaging charges (percentage) — computed on the gross sub-total
-    // (BEFORE any discount). Used on Without-GST bills only.
+    // Packaging charges (percentage). Normally computed on the gross sub-total
+    // (BEFORE any discount); in Manual-GST mode there may be no line items, so it
+    // is based on the manually-entered taxable amount instead.
     let packaging = 0;
-    if (opts.packagingPct) packaging = subTotal * (Number(opts.packagingPct) / 100);
+    const pkgBase = manualActive ? taxable : subTotal;
+    if (opts.packagingPct) packaging = pkgBase * (Number(opts.packagingPct) / 100);
 
     const totalTax = cgst + sgst + igst;
     let grand = taxable - billDiscount + packaging + totalTax;

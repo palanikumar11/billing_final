@@ -60,7 +60,7 @@
         gstRate: it.gstRate, hsn: it.hsn, taxInclusive: st.taxInclusive })),
       { customerState: st.billState || s.state || "Tamil Nadu", homeState: s.state || "Tamil Nadu",
         billDiscountPct: st.billDiscountPct, billDiscountAmt: st.billDiscountAmt, roundOff: st.roundOff,
-        packagingPct: st.type === "gst" ? 0 : st.packagingPct,   // packaging % — Without-GST only
+        packagingPct: (st.type !== "gst" || st.gstMode === "manual") ? st.packagingPct : 0,   // packaging % — Without-GST or Manual-GST
         gstEnabled: st.type === "gst",   // "Without GST" bill carries no tax
         // Manual GST override (GST bill only) — taxable + GST amount typed by hand.
         manualGst: st.type === "gst" && st.gstMode === "manual"
@@ -393,14 +393,35 @@
     host.appendChild(card);
   }
 
-  function recompute() { if (!st._hosts) return; drawCart(); drawTotals(); }
+  function recompute() {
+    if (!st._hosts) return;
+    st._manualTaxableEdited = false;   // a cart change re-syncs the Manual GST Amount
+    syncManualTaxableFromItems();
+    drawCart(); drawTotals();
+  }
+
+  // In a Manual-GST bill the typed "Amount" mirrors the cart items' taxable total
+  // so the manual bill reflects the items — unless the user has hand-edited the
+  // Amount, in which case it holds until the next cart change.
+  function syncManualTaxableFromItems() {
+    if (st.type !== "gst" || st.gstMode !== "manual" || st._manualTaxableEdited) return;
+    const t = totals();
+    const itemsTaxable = F.round2((t.lines || []).reduce((s, l) => s + (Number(l.taxable) || 0), 0));
+    st.manualTaxable = itemsTaxable;
+    st.manualGstAmt = F.round2(itemsTaxable * (Number(st.manualGstPct) || 0) / 100);
+  }
 
   // Light refresh used while typing in a cart field — updates the line amounts
   // and totals in place WITHOUT rebuilding the table, so the input keeps focus.
   function liveUpdate() {
     if (!st._hosts) return;
+    st._manualTaxableEdited = false;   // a cart edit re-syncs the Manual GST Amount
+    syncManualTaxableFromItems();
     const t = totals();
-    (st._amountCells || []).forEach((cell, i) => { if (cell && t.lines[i]) cell.textContent = F.num(lineAmt(t.lines[i])); });
+    (st._amountInputs || []).forEach((inp, i) => {
+      // Don't clobber the amount field the user is currently typing in.
+      if (inp && t.lines[i] && inp !== document.activeElement) inp.value = F.round2(lineAmt(t.lines[i])) || "";
+    });
     drawTotals();
   }
 
@@ -728,11 +749,11 @@
     tbl.innerHTML = `<thead><tr><th>Item</th><th class="num" style="width:104px">Qty</th><th class="num" style="width:88px">Rate</th><th class="num" style="width:64px">Disc%</th><th class="num" style="width:104px">Amt</th><th style="width:36px"></th></tr></thead>`;
     const tb = el("tbody");
     const t = totals();
-    st._amountCells = [];
     // Flat list of every editable numeric field in the cart, row by row
     // (Qty → Rate → Disc% for line 1, then line 2, …). ← / → walk this list so a
     // whole bill can be corrected from the keyboard without reaching for the mouse.
     const navCells = [];
+    st._amountInputs = [];
     st.items.forEach((it, idx) => {
       const line = t.lines[idx];
       const tr = el("tr");
@@ -777,7 +798,7 @@
       const qtyTd = el("td.num");
       const stepper = el("div.qty-stepper");
       const minus = el("button.qty-btn", { type: "button", html: "−", title: "Decrease" });
-      const qi = el("input.qty-val", { type: "number", value: it.qty, step: "any" });
+      const qi = el("input.qty-val", { type: "number", value: it.qty || "", step: "any", min: "0" });
       const plus = el("button.qty-btn", { type: "button", html: "+", title: "Increase" });
       minus.addEventListener("click", () => { it.qty = Math.max(0, F.round2((Number(it.qty) || 0) - 1)); recompute(); });
       plus.addEventListener("click", () => { it.qty = F.round2((Number(it.qty) || 0) + 1); recompute(); });
@@ -795,9 +816,24 @@
       di.addEventListener("input", (e) => { it.discountPct = Number(e.target.value) || 0; liveUpdate(); });
       dTd.appendChild(di); tr.appendChild(dTd);
       navCells.push(qi, ri, di);   // Qty → Rate → Disc% for ← / → navigation
-      // amount
-      const amtTd = el("td.num.mono", { style: { fontWeight: 700 } }, F.num(lineAmt(line)));
-      st._amountCells[idx] = amtTd;
+      // amount — editable: type a line total and the rate back-fills so amounts
+      // can be entered by hand (qty defaults to 1 if none has been set yet).
+      const amtTd = el("td.num.mono", { style: { fontWeight: 700 } });
+      const aInp = el("input", { type: "number", step: "any", min: "0", value: F.round2(lineAmt(line)) || "", title: "Line amount — type to set the rate" });
+      aInp.addEventListener("input", (e) => {
+        const amt = Number(e.target.value) || 0;
+        if ((Number(it.qty) || 0) <= 0) { it.qty = 1; qi.value = it.qty; }
+        const q = Number(it.qty) || 1;
+        const discF = 1 - (Number(it.discountPct) || 0) / 100;
+        let price = discF > 0 ? amt / (q * discF) : amt;
+        if (st.type === "gst" && st.taxInclusive) price = price * (1 + (Number(it.gstRate) || 0) / 100);
+        it.price = F.round2(price);
+        ri.value = it.price;
+        liveUpdate();
+      });
+      amtTd.appendChild(aInp);
+      st._amountInputs[idx] = aInp;
+      navCells.push(aInp);   // Qty → Rate → Disc% → Amt for ← / → navigation
       tr.appendChild(amtTd);
       // remove
       const rm = el("td");
@@ -824,7 +860,7 @@
 
   // GST entry mode: Auto (tax from line GST%) vs Manual (type Amount + GST%,
   // GST amount auto-fills and stays editable). GST bill only.
-  function drawGstMode(host, t) {
+  function drawGstMode(host, t, fx) {
     const wrap = el("div", { style: { margin: "6px 0", padding: "6px", border: "1px solid var(--border)", borderRadius: "8px" } });
     const seg = el("div", { style: { display: "flex", gap: "6px", marginBottom: st.gstMode === "manual" ? "8px" : "0" } });
     [["auto", "Auto GST"], ["manual", "Manual GST"]].forEach(([m, lbl]) => {
@@ -832,10 +868,13 @@
         if (st.gstMode === m) return;
         st.gstMode = m;
         if (m === "manual") {
-          // Seed the manual fields from the current auto totals so switching is smooth.
+          st._manualTaxableEdited = false;   // start by mirroring the cart items
+          syncManualTaxableFromItems();
+          // If there are no items yet, seed from the current auto totals.
           if (!Number(st.manualTaxable)) st.manualTaxable = F.round2(t.taxable || 0);
           if (!Number(st.manualGstAmt)) st.manualGstAmt = F.round2((t.taxable || 0) * (Number(st.manualGstPct) || 0) / 100);
-          st._mgstFocus = "amt";   // land on Amount when Manual opens
+          st._mgstFocus = "amt";       // land on Amount when Manual opens
+          st._mgstAutoFocus = true;    // one-shot: only auto-focus on open
         }
         drawTotals();
       } }));
@@ -843,18 +882,26 @@
     wrap.appendChild(seg);
 
     if (st.gstMode === "manual") {
-      const numInp = (val, ph, w) => el("input", { type: "number", step: "any", min: "0", value: val || val === 0 ? val : "", placeholder: ph, style: { height: "30px", width: w, fontSize: "12px" } });
-      const amtInp = numInp(st.manualTaxable, "0", "100px");
-      const pctInp = numInp(st.manualGstPct, "18", "60px");
-      const gstInp = numInp(st.manualGstAmt, "0", "100px");
-      const byKey = { amt: amtInp, pct: pctInp, gst: gstInp };
-      const order = ["amt", "pct", "gst"];
+      const sanitize = (s) => String(s).replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+      // Text inputs (not type=number) so the caret can be restored after each
+      // rebuild — a number input rejects setSelectionRange, which used to drop the
+      // caret to the start and enter digits backwards ("1400" -> "0041").
+      const numInp = (val, ph, w, id) => el("input", { type: "text", inputmode: "decimal", value: fx && fx.id === id ? fx.raw : (val || val === 0 ? val : ""), placeholder: ph, dataset: { focusid: id }, style: { height: "30px", width: w, fontSize: "12px" } });
+      const amtInp = numInp(st.manualTaxable, "0", "100px", "mgst-amt");
+      const pctInp = numInp(st.manualGstPct, "18", "60px", "mgst-pct");
+      const gstInp = numInp(st.manualGstAmt, "0", "100px", "mgst-gst");
+      // Packaging % — entered by hand in Manual GST too; supports decimals and is
+      // charged on the manually-entered Amount.
+      const pkgInp = numInp(st.packagingPct, "0", "70px", "pkg");
+      const byKey = { amt: amtInp, pct: pctInp, gst: gstInp, pkg: pkgInp };
+      const order = ["amt", "pct", "gst", "pkg"];
       // Amount or % changed -> recompute GST amount automatically.
-      const recalc = () => { st.manualGstAmt = F.round2((Number(st.manualTaxable) || 0) * (Number(st.manualGstPct) || 0) / 100); gstInp.value = st.manualGstAmt; drawTotals(); };
-      amtInp.addEventListener("input", () => { st.manualTaxable = Number(amtInp.value) || 0; st._mgstFocus = "amt"; recalc(); });
-      pctInp.addEventListener("input", () => { st.manualGstPct = Number(pctInp.value) || 0; st._mgstFocus = "pct"; recalc(); });
+      const recalc = () => { st.manualGstAmt = F.round2((Number(st.manualTaxable) || 0) * (Number(st.manualGstPct) || 0) / 100); drawTotals(); };
+      amtInp.addEventListener("input", (e) => { const raw = sanitize(e.target.value); e.target.value = raw; st.manualTaxable = Number(raw) || 0; st._manualTaxableEdited = true; st._mgstFocus = "amt"; recalc(); });
+      pctInp.addEventListener("input", (e) => { const raw = sanitize(e.target.value); e.target.value = raw; st.manualGstPct = Number(raw) || 0; st._mgstFocus = "pct"; recalc(); });
       // GST amount typed by hand -> keep it as an override (does not touch %).
-      gstInp.addEventListener("input", () => { st.manualGstAmt = Number(gstInp.value) || 0; st._mgstFocus = "gst"; drawTotals(); });
+      gstInp.addEventListener("input", (e) => { const raw = sanitize(e.target.value); e.target.value = raw; st.manualGstAmt = Number(raw) || 0; st._mgstFocus = "gst"; drawTotals(); });
+      pkgInp.addEventListener("input", (e) => { const raw = sanitize(e.target.value); e.target.value = raw; st.packagingPct = Number(raw) || 0; st._mgstFocus = "pkg"; drawTotals(); });
       // Remember which field is active so a totals rebuild can restore focus.
       order.forEach((k) => byKey[k].addEventListener("focus", () => { st._mgstFocus = k; }));
 
@@ -869,29 +916,57 @@
 
       const fld = (lbl, inp) => el("label", { style: { display: "flex", alignItems: "center", gap: "5px", fontSize: "12px" } }, [el("span.muted", lbl), inp]);
       const row = el("div", { style: { display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" } }, [
-        fld("Amount ₹", amtInp), fld("GST %", pctInp), fld("GST ₹", gstInp),
+        fld("Amount ₹", amtInp), fld("GST %", pctInp), fld("GST ₹", gstInp), fld("Packaging %", pkgInp),
       ]);
       wrap.appendChild(row);
-      wrap.appendChild(el("div.muted", { style: { fontSize: "11px", marginTop: "4px" } }, "Enter Amount + GST % — GST ₹ fills in automatically. ← → move between fields."));
+      wrap.appendChild(el("div.muted", { style: { fontSize: "11px", marginTop: "4px" } }, "Enter Amount + GST % — GST ₹ fills in automatically. Packaging % is optional. ← → move between fields."));
 
-      // Typing rebuilds the totals (and these inputs); restore focus + caret so
-      // keystrokes and arrow navigation aren't interrupted.
-      if (st._mgstFocus && byKey[st._mgstFocus]) {
+      // Restore focus + caret to whichever field was being typed before the
+      // rebuild. When Manual mode was *just opened* there is no prior focus to
+      // capture, so land on Amount (select-all) instead.
+      restoreFocusById(amtInp, fx); restoreFocusById(pctInp, fx); restoreFocusById(gstInp, fx); restoreFocusById(pkgInp, fx);
+      // Only land on Amount the moment Manual mode OPENS — not on every rebuild.
+      // Otherwise typing in a cart field (Qty/Rate) triggers a totals rebuild that
+      // would yank focus here after each keystroke, so only one digit registers.
+      if (!fx && st._mgstAutoFocus && byKey[st._mgstFocus]) {
+        st._mgstAutoFocus = false;
         const node = byKey[st._mgstFocus];
-        setTimeout(() => { if (!node.isConnected) return; node.focus(); const v = node.value; try { node.setSelectionRange(v.length, v.length); } catch (e) {} }, 0);
+        setTimeout(() => { if (!node.isConnected) return; node.focus(); node.select && node.select(); }, 0);
       }
     }
     host.appendChild(wrap);
   }
 
+  // Restore focus + caret to a rebuilt input if it was the one focused before the
+  // totals panel was wiped (see drawTotals). Matched by the data-focusid attribute.
+  function restoreFocusById(node, fx) {
+    if (!fx || !node || node.getAttribute("data-focusid") !== fx.id) return;
+    setTimeout(() => {
+      if (!node.isConnected) return;
+      node.focus();
+      const p = fx.caret == null ? node.value.length : fx.caret;
+      try { node.setSelectionRange(p, p); } catch (e) {}
+    }, 0);
+  }
+
   function drawTotals() {
-    const host = st._hosts.totalsHost; host.innerHTML = "";
+    const host = st._hosts.totalsHost;
+    // Every input inside this panel (packaging %, manual-GST amount/%/₹) is
+    // destroyed on each keystroke because the panel is fully rebuilt. Capture the
+    // focused control's id, caret and raw text BEFORE wiping so they can be
+    // restored afterwards; without this, multi-character/decimal entry loses
+    // focus or reverses — a number input can't hold the caret, so digits get
+    // prepended and "1400" ends up as "0041".
+    const ae = document.activeElement;
+    const fxId = (ae && ae.getAttribute) ? ae.getAttribute("data-focusid") : null;
+    const fx = fxId ? { id: fxId, caret: ae.selectionStart, raw: ae.value } : null;
+    host.innerHTML = "";
     const t = totals(); st._t = t;
     const rowT = (k, v, strong) => el("div", { style: { display: "flex", justifyContent: "space-between", padding: "3px 0", fontSize: strong ? "15px" : "13px", fontWeight: strong ? 800 : 400 } }, [el("span", { class: strong ? "" : "muted" }, k), el("span.mono", v)]);
     if (t.totalDiscount) host.appendChild(rowT("Discount", "- " + F.money(t.totalDiscount)));
     // GST entry mode toggle (GST bill only): Auto = tax from each line's GST%,
     // Manual = user types the taxable Amount + GST% and the GST amount fills in.
-    if (st.type === "gst") drawGstMode(host, t);
+    if (st.type === "gst") drawGstMode(host, t, fx);
     if (st.type === "gst") host.appendChild(rowT("Taxable", F.money(t.taxable)));
     if (st.type === "gst") {
       // In Manual mode the % label reflects the rate the user typed; in Auto it
@@ -925,11 +1000,23 @@
     discInp.addEventListener("focus", () => { st._mgstFocus = null; });
     discInp.addEventListener("input", (e) => { st.billDiscountAmt = Number(e.target.value) || 0; drawTotals(); });
     ctl.appendChild(el("label", { style: { display: "flex", alignItems: "center", gap: "5px" } }, [document.createTextNode("Bill Disc ₹"), discInp]));
-    // Packaging charges (%) — Without-GST bills only
+    // Packaging charges (%) — Without-GST bills only. This input lives inside the
+    // totals panel, which drawTotals() wipes on every keystroke, so a plain
+    // number input loses focus after one character (decimals like 1.5 become
+    // impossible). Use a decimal text input, cache the raw string across the
+    // rebuild, and restore focus + caret so it can be typed/edited freely.
     if (st.type !== "gst") {
-      const pkgInp = el("input", { type: "number", value: st.packagingPct || "", placeholder: "0", step: "any", min: "0", style: { height: "30px", width: "70px" } });
-      pkgInp.addEventListener("input", (e) => { st.packagingPct = Number(e.target.value) || 0; drawTotals(); });
+      const pkgInp = el("input", { type: "text", inputmode: "decimal", value: fx && fx.id === "pkg" ? fx.raw : (st.packagingPct || ""), placeholder: "0", dataset: { focusid: "pkg" }, style: { height: "30px", width: "70px" } });
+      pkgInp.addEventListener("input", (e) => {
+        // Keep only digits and a single decimal point so partial entries like
+        // "1." survive the rebuild (a number input would blank them out).
+        const raw = e.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+        e.target.value = raw;
+        st.packagingPct = Number(raw) || 0;
+        drawTotals();
+      });
       ctl.appendChild(el("label", { style: { display: "flex", alignItems: "center", gap: "5px" } }, [document.createTextNode("Packaging %"), pkgInp]));
+      restoreFocusById(pkgInp, fx);
     }
     const roLabel = el("label", { style: { display: "flex", alignItems: "center", gap: "5px" } });
     const ro = el("input", { type: "checkbox" }); ro.checked = st.roundOff;

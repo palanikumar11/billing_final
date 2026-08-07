@@ -62,6 +62,13 @@
   const dirty = new Set();
   let saveTimer = null;
 
+  // ---- Sync outbox: per-record changes waiting to be pushed to the cloud.
+  // Upserts are tracked by id; deletes are tombstones (id -> updatedAt) so a
+  // delete propagates to other devices instead of the record reappearing.
+  const outUp = { settings: new Set() };
+  const outDel = {};
+  COLLECTIONS.forEach((c) => { outUp[c] = new Set(); outDel[c] = new Map(); });
+
   // Normalise a product name/code for duplicate detection: lower-cased, spaces
   // collapsed, and common "copy" decorations stripped so a duplicated or lightly
   // renamed product ("Sparkler", "Sparkler (Copy)", "Sparkler (2)", "Sparkler - copy")
@@ -101,9 +108,10 @@
         if (c === "settings") await db.kvPut("settings", cache.settings);
         else { await db.clear(c); if (cache[c].length) await db.bulkPut(c, cache[c]); }
         emit("saved", c);
-        if (App.sync && App.sync.push) App.sync.push(c, c === "settings" ? cache.settings : cache[c]);
       } catch (e) { console.error("save failed", c, e); App.toast && App.toast.error("Autosave failed for " + c); }
     }
+    // Push the queued per-record changes to the cloud (delta sync).
+    if (App.sync && App.sync.schedule) App.sync.schedule();
   }
 
   const store = {
@@ -129,6 +137,7 @@
         if (i >= 0) arr[i] = { ...arr[i], ...rec };
         else { rec.createdAt = rec.createdAt || now; arr.push(rec); }
       }
+      outUp[c].add(rec.id); outDel[c].delete(rec.id);
       scheduleSave(c);
       emit("change:" + c, rec);
       return rec;
@@ -139,6 +148,7 @@
       const i = arr.findIndex((r) => r.id === id);
       if (i < 0) return null;
       const [removed] = arr.splice(i, 1);
+      outDel[c].set(id, App.format.nowTS()); outUp[c].delete(id);
       scheduleSave(c);
       emit("change:" + c, null);
       return removed;
@@ -147,6 +157,7 @@
     // Re-insert a removed record (for Undo)
     restore(c, rec) {
       cache[c].push(rec);
+      outUp[c].add(rec.id); outDel[c].delete(rec.id);
       scheduleSave(c);
       emit("change:" + c, rec);
       return rec;
@@ -180,9 +191,12 @@
       if (!dropped) return 0;
       const resolve = (id) => { let n = 0; while (remap[id] && n++ < 20) id = remap[id]; return id; };
       cache.customers = [...kept.values()];
+      const _now = App.format.nowTS();
+      Object.keys(remap).forEach((oldId) => { outDel.customers.set(oldId, _now); outUp.customers.delete(oldId); });
+      Object.values(remap).forEach((keepId) => outUp.customers.add(resolve(keepId)));
       let invTouched = false;
       (cache.invoices || []).forEach((inv) => {
-        if (inv.customerId && remap[inv.customerId]) { inv.customerId = resolve(inv.customerId); invTouched = true; }
+        if (inv.customerId && remap[inv.customerId]) { inv.customerId = resolve(inv.customerId); invTouched = true; outUp.invoices.add(inv.id); }
       });
       scheduleSave("customers");
       if (invTouched) scheduleSave("invoices");
@@ -222,11 +236,14 @@
       if (!dropped) return 0;
       const resolve = (id) => { let n = 0; while (remap[id] && n++ < 20) id = remap[id]; return id; };
       cache.products = [...kept.values()];
+      const _now = App.format.nowTS();
+      Object.keys(remap).forEach((oldId) => { outDel.products.set(oldId, _now); outUp.products.delete(oldId); });
+      Object.values(remap).forEach((keepId) => outUp.products.add(resolve(keepId)));
       let invTouched = false, mvTouched = false;
       (cache.invoices || []).forEach((inv) => {
-        (inv.items || []).forEach((it) => { if (it.productId && remap[it.productId]) { it.productId = resolve(it.productId); invTouched = true; } });
+        (inv.items || []).forEach((it) => { if (it.productId && remap[it.productId]) { it.productId = resolve(it.productId); invTouched = true; outUp.invoices.add(inv.id); } });
       });
-      (cache.stockMoves || []).forEach((m) => { if (m.productId && remap[m.productId]) { m.productId = resolve(m.productId); mvTouched = true; } });
+      (cache.stockMoves || []).forEach((m) => { if (m.productId && remap[m.productId]) { m.productId = resolve(m.productId); mvTouched = true; outUp.stockMoves.add(m.id); } });
       scheduleSave("products");
       if (invTouched) scheduleSave("invoices");
       if (mvTouched) scheduleSave("stockMoves");
@@ -236,9 +253,67 @@
 
     saveSettings(patch) {
       cache.settings = { ...(cache.settings || {}), ...patch, updatedAt: App.format.nowTS() };
+      outUp.settings.add("_singleton");
       scheduleSave("settings");
       emit("change:settings", cache.settings);
       return cache.settings;
+    },
+
+    // ---- Delta sync plumbing (used by sync.js) ----
+    // Drain the outbox: return the queued per-record changes and clear them. The
+    // caller re-queues (via _requeueOutbox) if the network push fails.
+    _drainOutbox() {
+      const up = {}, del = {};
+      for (const c of COLLECTIONS) {
+        if (outUp[c].size) up[c] = [...outUp[c]].map((id) => cache[c].find((r) => r.id === id)).filter(Boolean);
+        if (outDel[c].size) del[c] = [...outDel[c].entries()].map(([id, updatedAt]) => ({ id, updatedAt }));
+        outUp[c].clear(); outDel[c].clear();
+      }
+      if (outUp.settings.size && cache.settings) up.settings = [{ ...cache.settings, id: "_singleton" }];
+      outUp.settings.clear();
+      return { up, del };
+    },
+    _requeueOutbox(drained) {
+      if (!drained) return;
+      for (const c of COLLECTIONS) {
+        (drained.up[c] || []).forEach((r) => r && r.id != null && outUp[c].add(r.id));
+        (drained.del[c] || []).forEach((d) => outDel[c].set(d.id, d.updatedAt));
+      }
+      if (drained.up.settings) outUp.settings.add("_singleton");
+    },
+    // Merge cloud changes into the local cache + IndexedDB, newest-wins by
+    // updatedAt. Writes directly (not via upsert) so it never echoes back to the
+    // cloud, and emits change events so the current view refreshes.
+    async _applyRemote(changes) {
+      if (!changes) return 0;
+      const touched = new Set();
+      for (const col in changes) {
+        if (col === "settings") {
+          const rec = (changes.settings || []).filter((x) => !x.deleted).pop();
+          if (rec && rec.data && (!cache.settings || (Number(rec.updatedAt) || 0) >= (Number(cache.settings.updatedAt) || 0))) {
+            cache.settings = rec.data; touched.add("settings");
+          }
+          continue;
+        }
+        if (!Array.isArray(cache[col])) continue;
+        const byId = new Map(cache[col].map((r) => [r.id, r]));
+        for (const ch of changes[col]) {
+          if (ch.deleted) { if (byId.delete(ch.id)) touched.add(col); }
+          else {
+            const local = byId.get(ch.id);
+            if (!local || (Number(ch.updatedAt) || 0) >= (Number(local.updatedAt) || 0)) { byId.set(ch.id, ch.data); touched.add(col); }
+          }
+        }
+        if (touched.has(col)) cache[col] = [...byId.values()];
+      }
+      for (const col of touched) {
+        try {
+          if (col === "settings") await db.kvPut("settings", cache.settings);
+          else { await db.clear(col); if (cache[col].length) await db.bulkPut(col, cache[col]); }
+          emit("change:" + col);
+        } catch (e) { console.error("apply remote failed", col, e); }
+      }
+      return touched.size;
     },
 
     // Full export/import (backup)

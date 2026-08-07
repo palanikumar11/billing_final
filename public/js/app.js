@@ -151,24 +151,25 @@
   /* ---------------- Boot ---------------- */
   // Pull the cloud backup on startup so data survives clearing/resetting the browser.
   // Empty local DB => cloud replaces it; existing local => merge (never lose local records).
-  async function tryCloudRestore() {
+  async function tryCloudSync() {
     try {
       if (!App.sync || !App.sync.cfg) return;
       const c = App.sync.cfg();
       if (!c.url) return;
-      const cloud = await App.sync.pullAll();
-      if (!cloud || typeof cloud !== "object") return;
-      // Products are local-only (never restored from cloud) — deleting one must stick.
-      delete cloud.products;
-      const cols = ["invoices", "customers", "suppliers", "purchases", "expenses", "stockMoves"];
-      const cloudCount = cols.reduce((n, k) => n + (Array.isArray(cloud[k]) ? cloud[k].length : 0), 0);
-      if (!cloudCount) return; // nothing in the cloud yet — keep local as-is
-      const localCount = ["invoices", "products", "customers"].reduce((n, k) => n + App.store.all(k).length, 0);
-      const merge = localCount > 0; // empty browser => cloud wins; otherwise merge
-      await App.store.importAll(cloud, { merge });
-      console.info("Cloud restore:", merge ? "merged" : "restored from cloud", "· " + cloudCount + " records");
+      const cursor = await App.db.kvGet("syncRev");
+      if (!cursor) {
+        // First delta sync on this device — seed the cloud with any local-only
+        // records (the server merges newest-wins, so nothing is overwritten),
+        // then the pull below brings the full cloud set down. Deletes propagate
+        // via tombstones, so a delete on any device now sticks everywhere.
+        const localCount = ["invoices", "products", "customers"].reduce((n, k) => n + App.store.all(k).length, 0);
+        if (localCount) { try { await App.sync.pushAll(); } catch (e) {} }
+      }
+      await App.sync.pullDelta();          // apply cloud changes, advance the cursor
+      App.sync.startPolling(20);           // pick up other devices' changes every 20s
+      console.info("Cloud sync ready (D1 delta) · cursor " + (await App.db.kvGet("syncRev")));
     } catch (e) {
-      console.warn("Cloud restore skipped (offline/unreachable):", e && e.message);
+      console.warn("Cloud sync skipped (offline/unreachable):", e && e.message);
     }
   }
 
@@ -183,7 +184,7 @@
       // browser wipe / reset / cache-clear. On an empty (cleared) browser the cloud
       // is the source of truth; otherwise we merge so no local-only record is lost.
       // No-op when offline or when the cloud has nothing yet.
-      await tryCloudRestore();
+      await tryCloudSync();
 
       // Clean up any duplicate customers that accumulated from earlier merges.
       const dupCount = App.store.dedupeCustomers();
@@ -207,6 +208,12 @@
       applyTheme(s.theme || "light");
       App.refreshBranding();
       App.refreshLowStock();
+
+      // Daily automatic local backup — runs silently a few seconds after boot
+      // (once cloud sync has merged), writing a dated copy to the chosen folder.
+      if (App.modules.backup && App.modules.backup.runAutoBackup) {
+        setTimeout(() => { App.modules.backup.runAutoBackup({ silent: true }); }, 4000);
+      }
 
       // Re-render current view when its data changes
       App.store.on("*", debounce((evt) => {
