@@ -12,7 +12,7 @@
   //  - Without GST  -> Retail bill, no tax, shows trade name (…CRACKERS)
   //  - Estimation   -> Estimate, no tax, shows trade name (…CRACKERS)
   const TYPE_LABELS = [
-    ["gst", "GST Bill"], ["retail", "Without GST Bill"], ["estimate", "Estimation"],
+    ["retail", "Without GST Bill"], ["gst", "GST Bill"], ["estimate", "Estimation"],
   ];
   const PAY_MODES = ["Cash", "UPI", "Card", "Bank Transfer", "Credit"];
 
@@ -20,8 +20,8 @@
   function fresh() {
     const s = App.store.settings() || {};
     return {
-      type: "gst", items: [], customerId: "", customer: null,
-      cust: { name: "", mobile: "", city: "", gstin: "", address: "", pin: "" },   // inline entry
+      type: "retail", items: [], customerId: "", customer: null,   // default: Without GST bill
+      cust: { name: "", mobile: "", city: "", gstin: "", aadhaar: "", address: "", pin: "" },   // inline entry
       billState: s.state || "Tamil Nadu",   // place of supply (drives split vs IGST)
       billDiscountPct: 0, billDiscountAmt: 0, packagingPct: 0, roundOff: s.autoRoundOff === true,
       // GST entry: "auto" computes tax from each line's GST%; "manual" lets the
@@ -527,7 +527,7 @@
     const stepOnEnter = (e) => {
       if (e.key !== "Enter") return;
       e.preventDefault();
-      const key = e.target === refs.gstin ? "gstin" : e.target === refs.mobile ? "mobile" : null;
+      const key = e.target === refs.gstin ? "gstin" : e.target === refs.aadhaar ? "aadhaar" : e.target === refs.mobile ? "mobile" : null;
       if (key && fetchOnEnter(key, e.target.value, ctx())) return;
       const i = seq.indexOf(e.target);
       const next = i >= 0 && seq[i + 1];
@@ -551,10 +551,10 @@
 
     const ctx = () => ({ refs, sel, stateSel, updateBadge });
 
-    // Smart auto-fill panel — a highlighted box holding the lookup fields. Either
-    // one identifies a saved customer and pulls the rest of the details in:
-    //   GST bill      -> GSTIN or mobile number
-    //   Without GST   -> mobile number
+    // Smart auto-fill panel — a highlighted box holding the lookup fields. Any
+    // one of them identifies a saved customer and pulls the rest of the details in:
+    //   GST bill      -> GSTIN, Aadhaar or mobile number
+    //   Without GST   -> Aadhaar or mobile number
     const lookup = el("div.pos-cust-lookup");
     lookup.appendChild(el("div.pos-cust-lookup-h", [el("span", "⚡"), el("span", "Quick fill — find a saved customer")]));
     host.appendChild(lookup);
@@ -567,12 +567,21 @@
         applyGstin(v, ctx());
       });
     }
+    // Aadhaar — a saved customer can be pulled in by their Aadhaar too. Formatted
+    // as readable 4-4-4 groups (max 12 digits); a full 12-digit number fetches
+    // their record, and a number typed here saves to it for next time + the bill.
+    const aad = field("aadhaar", "Aadhaar Number", "1234 5678 9012", "text", lookup);
+    aad.addEventListener("input", (e) => {
+      const val = fmtAadhaar(e.target.value);
+      e.target.value = val; st.cust.aadhaar = val;
+      applyAadhaar(val, ctx());
+    });
     const mob = field("mobile", "Mobile Number", "10-digit mobile", "tel", lookup);
     mob.addEventListener("input", (e) => { applyMobile(e.target.value, ctx()); });
     lookup.appendChild(el("div.pos-cust-hint",
       st.type === "gst"
-        ? "GSTIN or mobile fills in a saved customer automatically. State is read from the GSTIN code."
-        : "Mobile number fills in a saved customer automatically."));
+        ? "GSTIN, Aadhaar or mobile fills in a saved customer automatically. State is read from the GSTIN code."
+        : "Aadhaar or mobile number fills in a saved customer automatically."));
 
     field("name", "Customer Name", "Full name", "text");
     field("city", "City / Place", "e.g. Bengaluru, Mysore", "text");
@@ -610,14 +619,15 @@
   /* ---------------- Customer auto-fetch (GSTIN / mobile) ---------------- */
   const gstKey = (v) => String(v || "").toUpperCase().replace(/\s+/g, "");   // uppercase, no spaces
   const digits = (v) => String(v || "").replace(/\D/g, "");                  // mobile, digits only
-  const CUST_KEYS = ["name", "mobile", "city", "address", "gstin"];
+  const fmtAadhaar = (v) => digits(v).slice(0, 12).replace(/(\d{4})(?=\d)/g, "$1 ");  // 4-4-4 groups, max 12
+  const CUST_KEYS = ["name", "mobile", "city", "address", "gstin", "aadhaar"];
 
   // Fill the bill from a saved customer. `key` is the field being typed — it's
   // left alone (and its live value kept) so the caret never jumps mid-typing.
   function fillFrom(c, key, typed, ctx) {
     st._autoFilled = { id: c.id, key, val: typed };
     st.customerId = c.id; st.customer = c;
-    st.cust = { name: c.name || "", mobile: c.mobile || "", city: c.city || "", gstin: c.gstin || "", address: c.address || "", pin: c.pin || "" };
+    st.cust = { name: c.name || "", mobile: c.mobile || "", city: c.city || "", gstin: c.gstin || "", aadhaar: c.aadhaar || "", address: c.address || "", pin: c.pin || "" };
     st.cust[key] = typed;
     if (c.state) { st.billState = c.state; if (ctx.stateSel) ctx.stateSel.value = c.state; }
     // Write straight into the live inputs — no redraw, so focus stays put.
@@ -670,7 +680,7 @@
     if (st.customerId === a.id) {
       st.customerId = ""; st.customer = null;
       const keep = st.cust[key];
-      st.cust = { name: "", mobile: "", city: "", gstin: "", address: "", pin: "" };
+      st.cust = { name: "", mobile: "", city: "", gstin: "", aadhaar: "", address: "", pin: "" };
       st.cust[key] = keep;
       CUST_KEYS.filter((k) => k !== key).forEach((k) => { if (ctx.refs[k]) ctx.refs[k].value = ""; });
       if (ctx.sel) ctx.sel.value = "";
@@ -695,7 +705,7 @@
   function fetchOnEnter(key, raw, ctx) {
     const v = key === "gstin" ? gstKey(raw) : digits(raw);
     if (!v) return false;
-    const of = (c) => (key === "gstin" ? gstKey(c.gstin) : digits(c.mobile));
+    const of = (c) => (key === "gstin" ? gstKey(c.gstin) : key === "aadhaar" ? digits(c.aadhaar) : digits(c.mobile));
     const list = App.store.all("customers").filter((c) => of(c));
     let hits = list.filter((c) => of(c) === v);                       // exact first
     if (!hits.length) hits = list.filter((c) => of(c).startsWith(v)); // then partial
@@ -703,13 +713,14 @@
     // genuinely different customer counts as an ambiguous match.
     const people = dedupeCustomers(hits);
     if (people.length !== 1) {
-      App.toast.info(people.length ? "Several customers match — keep typing" : "No saved customer with that " + (key === "gstin" ? "GSTIN" : "number"));
+      App.toast.info(people.length ? "Several customers match — keep typing" : "No saved customer with that " + (key === "gstin" ? "GSTIN" : key === "aadhaar" ? "Aadhaar" : "number"));
       return false;
     }
     const c = people[0];
     attach(c, key, raw, ctx);
     // Complete the box with the customer's full value, then go straight to products.
-    if (ctx.refs[key]) { ctx.refs[key].value = (key === "gstin" ? gstKey(c.gstin) : c.mobile) || raw; st.cust[key] = ctx.refs[key].value; }
+    const full = key === "gstin" ? gstKey(c.gstin) : key === "aadhaar" ? fmtAadhaar(c.aadhaar) : c.mobile;
+    if (ctx.refs[key]) { ctx.refs[key].value = full || raw; st.cust[key] = ctx.refs[key].value; }
     st._autoFilled = { id: c.id, key, val: st.cust[key] };
     const search = st._hosts && st._hosts.searchInp;
     if (search) { search.focus(); search.select(); }
@@ -727,16 +738,28 @@
     if (c) attach(c, "mobile", raw, ctx);
   }
 
+  // Aadhaar: a full 12-digit number matching a saved customer pulls their record
+  // in — works on GST and Without-GST bills alike. `val` is the formatted 4-4-4
+  // string the input already holds, so autoDetach compares like-for-like.
+  function applyAadhaar(val, ctx) {
+    st.cust.aadhaar = val;
+    autoDetach("aadhaar", val, ctx);
+    const d = digits(val);
+    if (d.length < 12) return;
+    const c = App.store.all("customers").find((x) => digits(x.aadhaar) === d);
+    if (c) attach(c, "aadhaar", val, ctx);
+  }
+
   function setCustomer(id) {
     st.customerId = id;
     st._autoFilled = null;
     st.customer = id ? App.store.get("customers", id) : null;
     if (st.customer) {
       const c = st.customer;
-      st.cust = { name: c.name || "", mobile: c.mobile || "", city: c.city || "", gstin: c.gstin || "", address: c.address || "", pin: c.pin || "" };
+      st.cust = { name: c.name || "", mobile: c.mobile || "", city: c.city || "", gstin: c.gstin || "", aadhaar: c.aadhaar || "", address: c.address || "", pin: c.pin || "" };
       if (c.state) st.billState = c.state;   // default place of supply to customer's state
     } else {
-      st.cust = { name: "", mobile: "", city: "", gstin: "", address: "", pin: "" };
+      st.cust = { name: "", mobile: "", city: "", gstin: "", aadhaar: "", address: "", pin: "" };
     }
     drawCustomer(); drawTotals();
   }
@@ -994,12 +1017,22 @@
 
     // extra controls
     const ctl = el("div", { style: { display: "flex", gap: "10px", marginTop: "8px", flexWrap: "wrap", fontSize: "12px" } });
-    const discInp = el("input", { type: "number", value: st.billDiscountAmt || "", placeholder: "0", style: { height: "30px", width: "90px" } });
+    // Same rebuild trap as Packaging below: drawTotals() wipes this input on every
+    // keystroke, so a number input loses focus after one character. Use a decimal
+    // text input, cache the raw string across the rebuild, and restore focus+caret.
+    const discInp = el("input", { type: "text", inputmode: "decimal", value: fx && fx.id === "disc" ? fx.raw : (st.billDiscountAmt || ""), placeholder: "0", dataset: { focusid: "disc" }, style: { height: "30px", width: "90px" } });
     // Focusing another totals control releases the manual-GST focus lock so the
     // rebuild doesn't yank the caret back into the GST fields.
     discInp.addEventListener("focus", () => { st._mgstFocus = null; });
-    discInp.addEventListener("input", (e) => { st.billDiscountAmt = Number(e.target.value) || 0; drawTotals(); });
+    discInp.addEventListener("input", (e) => {
+      // Keep only digits and a single decimal point so partial entries survive.
+      const raw = e.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+      e.target.value = raw;
+      st.billDiscountAmt = Number(raw) || 0;
+      drawTotals();
+    });
     ctl.appendChild(el("label", { style: { display: "flex", alignItems: "center", gap: "5px" } }, [document.createTextNode("Bill Disc ₹"), discInp]));
+    restoreFocusById(discInp, fx);
     // Packaging charges (%) — Without-GST bills only. This input lives inside the
     // totals panel, which drawTotals() wipes on every keystroke, so a plain
     // number input loses focus after one character (decimals like 1.5 become
@@ -1113,7 +1146,7 @@
       const rec = App.store.upsert("customers", {
         ...(existing || {}),
         name: cu.name.trim(), mobile: cu.mobile || "", city: cu.city || "",
-        gstin: cu.gstin || "", address: cu.address || "", state: st.billState || "", pin: cu.pin || "",
+        gstin: cu.gstin || "", aadhaar: cu.aadhaar || "", address: cu.address || "", state: st.billState || "", pin: cu.pin || "",
       });
       customerId = rec.id;
     }
@@ -1122,7 +1155,7 @@
       number, type: st.type, date: st.date || F.todayISO(),
       customerId: customerId, customerName: (cu.name || "").trim() || "Walk-in Customer",
       customerMobile: cu.mobile || "", customerGstin: cu.gstin || "", customerCity: cu.city || "",
-      customerState: st.billState || s.state || "Tamil Nadu",
+      customerAadhaar: cu.aadhaar || "", customerState: st.billState || s.state || "Tamil Nadu",
       customerAddress: cu.address || "", customerPin: cu.pin || "",
       items: t.lines.map((l) => ({ productId: l.productId, name: l.name, hsn: l.hsn, unit: l.unit, qty: l.qty, price: l.price, discount: l.discount, gstRate: l.gstRate, cgst: l.cgst, sgst: l.sgst, igst: l.igst, taxable: l.taxable, amount: l.amount, note: l.note })),
       totals: t, paymentMode: st.paymentMode, split: st.split, paid: F.round2(paid), note: st.note, status: "active",
@@ -1162,6 +1195,6 @@
     if (st._hosts) return setCustomer(id);
     const c = App.store.get("customers", id);
     st.customerId = id; st.customer = c;
-    if (c) { st.cust = { name: c.name || "", mobile: c.mobile || "", gstin: c.gstin || "", address: c.address || "", pin: c.pin || "" }; if (c.state) st.billState = c.state; }
+    if (c) { st.cust = { name: c.name || "", mobile: c.mobile || "", gstin: c.gstin || "", aadhaar: c.aadhaar || "", address: c.address || "", pin: c.pin || "" }; if (c.state) st.billState = c.state; }
   } };
 })();

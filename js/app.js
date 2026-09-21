@@ -232,7 +232,17 @@
 
       // Nav
       $$(".nav-item").forEach((n) => n.addEventListener("click", () => { ui.navigate(n.dataset.route); closeMobileNav(); }));
-      $("#menuBtn").addEventListener("click", () => document.body.classList.toggle("nav-open"));
+      // ☰ menu: opens the drawer on mobile, collapses/expands the sidebar on desktop
+      $("#menuBtn").addEventListener("click", () => {
+        if (window.matchMedia("(max-width: 768px)").matches) document.body.classList.toggle("nav-open");
+        else document.body.classList.toggle("sidebar-collapsed");
+      });
+      // × on the sidebar hides it (closes the mobile drawer / collapses on desktop)
+      const sidebarCloseEl = $("#sidebarClose");
+      if (sidebarCloseEl) sidebarCloseEl.addEventListener("click", () => {
+        document.body.classList.remove("nav-open");
+        document.body.classList.add("sidebar-collapsed");
+      });
       // Mobile bottom tab bar
       $$(".mt-item[data-route]").forEach((n) => n.addEventListener("click", () => { ui.navigate(n.dataset.route); closeMobileNav(); }));
       const mtMore = $("#mtMore"); if (mtMore) mtMore.addEventListener("click", (e) => { e.stopPropagation(); document.body.classList.toggle("nav-open"); });

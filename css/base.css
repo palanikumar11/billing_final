@@ -64,6 +64,25 @@ img { max-width: 100%; }
 .brand .logo img { width: 100%; height: 100%; object-fit: contain; }
 .brand .name { color: #fff; font-weight: 700; font-size: 16.5px; line-height: 1.1; letter-spacing: .01em; }
 .brand .tag { font-size: 11px; color: #8b94b8; margin-top: 2px; font-weight: 500; letter-spacing: .02em; }
+/* Close/hide-sidebar button (lives in the brand header) */
+.sidebar-close {
+  margin-left: auto; align-self: flex-start;
+  width: 28px; height: 28px; flex-shrink: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.04);
+  color: #8b94b8;
+  font-size: 20px; line-height: 1;
+  display: grid; place-items: center;
+  transition: background .15s, color .15s;
+}
+.sidebar-close:hover { background: rgba(255,255,255,.12); color: #fff; }
+
+/* Desktop: collapse hides the sidebar; topbar â˜° re-opens it */
+@media (min-width: 769px) {
+  body.sidebar-collapsed #app { grid-template-columns: 1fr; }
+  body.sidebar-collapsed .sidebar { display: none; }
+}
 
 .nav-group-label {
   font-size: 10px; text-transform: uppercase; letter-spacing: .1em;

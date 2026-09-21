@@ -10,6 +10,7 @@
   const FIELDS = [
     ["name", "Customer Name", "text", true], ["mobile", "Mobile Number", "text"], ["email", "Email", "text"],
     ["gstin", "GST Number", "text"], ["pan", "PAN (optional)", "text"],
+    ["aadhaar", "Aadhaar Number (optional)", "text"],
     ["city", "City / Place", "text"], ["state", "State", "state"], ["pin", "PIN Code", "text"],
     ["creditLimit", "Credit Limit", "number"], ["address", "Address", "textarea"],
   ];
@@ -94,6 +95,7 @@
       if (type !== "state") input.value = c[key] != null ? c[key] : "";
       inputs[key] = input; field.appendChild(input);
       if (key === "gstin") field.appendChild(el("div.hint", "State is auto-detected for GST (CGST+SGST if Tamil Nadu, else IGST)."));
+      if (key === "aadhaar") field.appendChild(el("div.hint", "Optional. When set, it auto-fills and prints on the customer's bills (GST & Without-GST)."));
       form.appendChild(field);
     });
     App.modal.open({
@@ -132,7 +134,8 @@
       <div class="muted" style="font-size:13px;line-height:1.8">
       ☎ ${esc(c.mobile || "—")} · ✉ ${esc(c.email || "—")}<br>
       ${esc(c.address || "")} ${esc(c.state || "")} ${esc(c.pin || "")}<br>
-      GSTIN: ${esc(c.gstin || "—")} · PAN: ${esc(c.pan || "—")} · Credit Limit: ${F.money(c.creditLimit)}</div>`;
+      GSTIN: ${esc(c.gstin || "—")} · PAN: ${esc(c.pan || "—")} · Aadhaar: ${esc(c.aadhaar || "—")}<br>
+      Credit Limit: ${F.money(c.creditLimit)}</div>`;
     body.appendChild(info);
     body.appendChild(el("div.card-title", "Invoice History"));
     if (!invs.length) body.appendChild(el("div.muted", "No invoices yet."));

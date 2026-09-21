@@ -183,7 +183,7 @@
     ]));
     body.appendChild(el("div.card.pad", { html: `<div style="font-size:13px;line-height:1.9">
       <b>${esc(i.number)}</b> · ${esc(App.invoices.TITLES[i.type] || i.type)} · ${F.fmtDate(i.date)}<br>
-      Customer: <b>${esc(i.customerName || "Walk-in")}</b> ${i.customerMobile ? "· " + esc(i.customerMobile) : ""} ${i.customerGstin ? "· " + esc(i.customerGstin) : ""}<br>
+      Customer: <b>${esc(i.customerName || "Walk-in")}</b> ${i.customerMobile ? "· " + esc(i.customerMobile) : ""} ${i.customerGstin ? "· " + esc(i.customerGstin) : ""} ${i.customerAadhaar ? "· Aadhaar " + esc(i.customerAadhaar) : ""}<br>
       State: ${esc(i.customerState || "—")} · Payment: ${esc(i.paymentMode || "")} · ${t.intra ? "CGST+SGST" : "IGST"} · Items: ${i.items?.length || 0}</div>` }));
     // items
     const tw = el("div.table-wrap", { style: { marginTop: "12px" } }); const tbl = el("table.data");

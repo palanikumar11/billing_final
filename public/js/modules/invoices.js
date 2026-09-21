@@ -24,6 +24,13 @@
 
   function logoSrc(s) { return s.logo || DEFAULT_LOGO; }
 
+  // Aadhaar prints in the readable 4-4-4 grouping ("1234 5678 9012") whether it
+  // was saved with spaces or as bare digits.
+  function fmtAadhaar(v) {
+    const d = String(v || "").replace(/\D/g, "");
+    return d.length === 12 ? d.replace(/(\d{4})(?=\d)/g, "$1 ") : String(v || "").trim();
+  }
+
   // Taxable value of a line (falls back for older saved bills that predate the field).
   function lineTaxable(it) {
     if (it.taxable != null) return Number(it.taxable) || 0;
@@ -141,6 +148,9 @@
     if (custLoc) bill.appendChild(el("div.p-line", custLoc));
     if (inv.customerMobile) bill.appendChild(el("div.p-line", "☎ " + inv.customerMobile));
     if (isGst && inv.customerGstin) bill.appendChild(el("div.p-line", "GSTIN: " + inv.customerGstin));
+    // Aadhaar is optional and prints on BOTH GST and Without-GST bills — only when
+    // one was entered in the customer's details.
+    if (inv.customerAadhaar) bill.appendChild(el("div.p-line", "Aadhaar: " + fmtAadhaar(inv.customerAadhaar)));
     parties.appendChild(bill);
 
     const ship = el("div.p-col");
@@ -415,6 +425,14 @@
     return (_cssCache = "*,*::before,*::after{box-sizing:border-box}\n" + css);
   }
   async function nodeToJpeg(a4, css, quality) {
+    // On phones, responsive.css shrinks the on-screen sheet with `zoom` (0.5 or
+    // 0.42) so an A4 fits the viewport. That zoom must NOT leak into the PDF: the
+    // capture measures this element's width, but the embedded print CSS re-renders
+    // the sheet at the full 210mm. A zoomed measurement would size the canvas to
+    // ~half width, and the right half of every bill (name, table, totals) would be
+    // clipped off. Neutralise any screen zoom/transform before measuring.
+    a4.style.zoom = "1";
+    a4.style.transform = "none";
     const W = Math.ceil(a4.getBoundingClientRect().width) || 794;
     // .a4 clips at one sheet (overflow:hidden), so a long bill would lose its
     // footer and signature off the bottom of the PDF. Let the capture grow to
