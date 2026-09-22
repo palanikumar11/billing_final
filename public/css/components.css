@@ -501,6 +501,9 @@ table.cart-table tbody tr:hover { background: color-mix(in srgb, var(--brand-sof
 .cart-gst:focus { border-color: var(--brand); box-shadow: var(--ring); outline: none; background: var(--surface); }
 /* Note field — clean on focus, matching the customer inputs */
 .cart-note:focus { border-style: solid; border-color: var(--brand); box-shadow: var(--ring); background: var(--surface); }
+.cart-pack { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 5px; }
+.cart-pack label { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; color: var(--fg-muted); font-weight: 700; }
+.cart-pack input { width: 46px; height: 24px; padding: 0 4px; font-size: 11px; text-align: right; }
 
 /* ---- POS customer-details column — labeled fields + quick-fill panel ---- */
 .pos-cust .card-title { font-size: 14px; }

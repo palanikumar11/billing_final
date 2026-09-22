@@ -38,6 +38,13 @@
     return App.gst.round2(gross);
   }
 
+  function packText(it) {
+    return [["Box", it.box], ["Pcs", it.pcs], ["Pkt", it.pkt], ["Case", it.case]]
+      .filter(([, v]) => Number(v))
+      .map(([l, v]) => l + " " + F.num(Number(v), Number(v) % 1 ? 2 : 0))
+      .join(" · ");
+  }
+
   // Break the business address into printable lines.
   function addressLines(addr) {
     const a = String(addr || "").trim();
@@ -209,6 +216,8 @@
       // Robust name: saved name → look up product → placeholder (never blank).
       const nm = it.name || (it.productId && (App.store.get("products", it.productId) || {}).name) || it.description || "Item";
       d.appendChild(el("div.desc", nm));
+      const pack = packText(it);
+      if (pack) d.appendChild(el("div.pack", pack));
       if (it.note) d.appendChild(el("div.note", it.note));
       tr.appendChild(d);
       if (showHsn) tr.appendChild(el("td.c", it.hsn || "-"));

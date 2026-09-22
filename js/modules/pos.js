@@ -56,6 +56,7 @@
     return App.gst.computeBill(
       // Keep name/productId/unit/note so the SAVED bill (and its print/PDF) show them.
       st.items.map((it) => ({ productId: it.productId, name: it.name, unit: it.unit, note: it.note,
+        box: it.box, pcs: it.pcs, pkt: it.pkt, case: it.case,
         qty: it.qty, price: it.price, discountPct: it.discountPct, discountAmt: it.discountAmt,
         gstRate: it.gstRate, hsn: it.hsn, taxInclusive: st.taxInclusive })),
       { customerState: st.billState || s.state || "Tamil Nadu", homeState: s.state || "Tamil Nadu",
@@ -73,11 +74,13 @@
     const rate = price != null ? Number(price) || 0 : Number(p.sellingPrice) || 0;
     const existing = st.items.find((it) => it.productId === p.id);
     if (existing) { existing.qty = F.round2((Number(existing.qty) || 0) + qty); existing.price = rate; if (note) existing.note = note; }
-    else st.items.push({ productId: p.id, name: p.name, hsn: p.hsn || "", unit: p.unit || "PCS", gstRate: Number(p.gstRate) || 0, price: rate, qty, discountPct: 0, discountAmt: 0, note: note || "", stock: p.stock });
+    else st.items.push({ productId: p.id, name: p.name, hsn: p.hsn || "", unit: p.unit || "PCS",
+      box: Number(p.box) || 0, pcs: Number(p.pcs) || 0, pkt: Number(p.pkt) || 0, case: Number(p.case) || 0,
+      gstRate: Number(p.gstRate) || 0, price: rate, qty, discountPct: 0, discountAmt: 0, note: note || "", stock: p.stock });
     recompute();
   }
   function addManual() {
-    st.items.push({ productId: "", name: "", hsn: "", unit: "PCS", gstRate: App.store.settings().defaultGstRate || 0, price: 0, qty: 1, discountPct: 0, discountAmt: 0, note: "" });
+    st.items.push({ productId: "", name: "", hsn: "", unit: "PCS", box: 0, pcs: 0, pkt: 0, case: 0, gstRate: App.store.settings().defaultGstRate || 0, price: 0, qty: 1, discountPct: 0, discountAmt: 0, note: "" });
     recompute();
   }
 
@@ -199,7 +202,7 @@
       item.appendChild(el("div.pos-sr-ic", "📦"));
       const main = el("div.pos-sr-main");
       main.appendChild(el("div.pos-sr-name", p.name));
-      main.appendChild(el("div.pos-sr-meta", `${p.code || p.hsn || "-"} · GST ${p.gstRate || 0}%`));
+      main.appendChild(el("div.pos-sr-meta", `${p.code || p.hsn || "-"} · GST ${p.gstRate || 0}%${packText(p) ? " · " + packText(p) : ""}`));
       item.appendChild(main);
       const right = el("div.pos-sr-right");
       right.appendChild(el("div.pos-sr-price", F.money(p.sellingPrice)));
@@ -295,7 +298,7 @@
     const info = el("div.pos-pv-info");
     info.appendChild(el("div.pos-pv-name", p.name));
     info.appendChild(el("div.pos-pv-meta",
-      `${p.hsn || p.code || "-"} · GST ${p.gstRate || 0}% · ${p.unit || "PCS"} · Stock ${F.num(p.stock, p.stock % 1 ? 2 : 0)}`));
+      `${p.hsn || p.code || "-"} · GST ${p.gstRate || 0}% · ${p.unit || "PCS"}${packText(p) ? " · " + packText(p) : ""} · Stock ${F.num(p.stock, p.stock % 1 ? 2 : 0)}`));
     head.appendChild(info);
     head.appendChild(el("button.icon-btn", { html: "✕", title: "Cancel", onClick: closePreview }));
     card.appendChild(head);
@@ -430,6 +433,13 @@
   // printed invoice's Amount column carries, so the two always agree.
   function lineAmt(line) { return st.type === "gst" ? line.taxable : line.amount; }
 
+  function packText(it) {
+    return [["Box", it.box], ["Pcs", it.pcs], ["Pkt", it.pkt], ["Case", it.case]]
+      .filter(([, v]) => Number(v))
+      .map(([l, v]) => l + " " + F.num(Number(v), Number(v) % 1 ? 2 : 0))
+      .join(" · ");
+  }
+
   // All-products grid (tap a card to add). Filtered by the search box.
   function drawProductGrid() {
     const host = st._hosts.gridHost; host.innerHTML = "";
@@ -447,7 +457,7 @@
       const stockCls = outOf ? "out" : Number(p.stock) <= Number(p.minStock || 0) ? "low" : "";
       const card = el("button.pos-pcard" + (outOf ? ".out" : ""), { type: "button", title: p.name });
       card.appendChild(el("div.pos-pcard-name", p.name));
-      card.appendChild(el("div.pos-pcard-meta", `${p.hsn || "-"} · GST ${p.gstRate || 0}%`));
+      card.appendChild(el("div.pos-pcard-meta", `${p.hsn || "-"} · GST ${p.gstRate || 0}%${packText(p) ? " · " + packText(p) : ""}`));
       card.appendChild(el("div.pos-pcard-foot", [
         el("span.pos-pcard-price", F.money(p.sellingPrice)),
         el("span.pos-pcard-stock" + (stockCls ? "." + stockCls : ""), outOf ? "Out" : F.num(p.stock, p.stock % 1 ? 2 : 0)),
@@ -802,6 +812,7 @@
           sub.appendChild(el("span", "GST " + (it.gstRate || 0) + "% · "));
         }
         sub.appendChild(el("span", it.unit || ""));
+        if (packText(it)) sub.appendChild(el("span", " · " + packText(it)));
         nameTd.appendChild(sub);
       }
       else {
@@ -816,6 +827,13 @@
       const noteInp = el("input.cart-note", { type: "text", value: it.note || "", placeholder: "＋ note (prints on bill)" });
       noteInp.addEventListener("input", (e) => { it.note = e.target.value; });   // no redraw — keeps focus
       nameTd.appendChild(noteInp);
+      const packRow = el("div.cart-pack");
+      [["box", "Box"], ["pcs", "Pcs"], ["pkt", "Pkt"], ["case", "Case"]].forEach(([key, label]) => {
+        const pi = el("input", { type: "number", value: it[key] || "", step: "any", min: "0", title: label });
+        pi.addEventListener("input", (e) => { it[key] = Number(e.target.value) || 0; });
+        packRow.appendChild(el("label", [el("span", label), pi]));
+      });
+      nameTd.appendChild(packRow);
       tr.appendChild(nameTd);
       // qty — − / value / + stepper card
       const qtyTd = el("td.num");
@@ -1157,7 +1175,9 @@
       customerMobile: cu.mobile || "", customerGstin: cu.gstin || "", customerCity: cu.city || "",
       customerAadhaar: cu.aadhaar || "", customerState: st.billState || s.state || "Tamil Nadu",
       customerAddress: cu.address || "", customerPin: cu.pin || "",
-      items: t.lines.map((l) => ({ productId: l.productId, name: l.name, hsn: l.hsn, unit: l.unit, qty: l.qty, price: l.price, discount: l.discount, gstRate: l.gstRate, cgst: l.cgst, sgst: l.sgst, igst: l.igst, taxable: l.taxable, amount: l.amount, note: l.note })),
+      items: t.lines.map((l) => ({ productId: l.productId, name: l.name, hsn: l.hsn, unit: l.unit,
+        box: l.box, pcs: l.pcs, pkt: l.pkt, case: l.case,
+        qty: l.qty, price: l.price, discount: l.discount, gstRate: l.gstRate, cgst: l.cgst, sgst: l.sgst, igst: l.igst, taxable: l.taxable, amount: l.amount, note: l.note })),
       totals: t, paymentMode: st.paymentMode, split: st.split, paid: F.round2(paid), note: st.note, status: "active",
       servedBy: s.businessName, vehicleNo: (st.vehicleNo || "").trim(),
     };
