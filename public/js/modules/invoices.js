@@ -85,7 +85,7 @@
     if (showRetailWatermark) {
       const wm = el("div.watermark");
       const inner = el("div.wm-inner");
-      const wmSrc = s.retailWatermarkLogo || s.watermarkLogo || RETAIL_WATERMARK_LOGO;
+      const wmSrc = s.retailWatermarkLogo || RETAIL_WATERMARK_LOGO;
       if (wmSrc) inner.appendChild(el("img", { src: wmSrc, class: "wm-retail" }));
       inner.appendChild(el("div.wm-name", (name || "").toUpperCase()));
       wm.appendChild(inner);

@@ -30,7 +30,8 @@
       upiId: "",
       // Assets — logo defaults to the bundled company logo; others via Settings
       logo: "assets/logo.png",
-      watermarkLogo: "assets/logo_gold.png",   // gold logo watermark on non-GST bills
+      retailWatermarkLogo: "assets/retail_watermark_logo.png",
+      watermarkLogo: "assets/retail_watermark_logo.png",   // legacy fallback for older backups
       signature: "",
       stamp: "",
       upiQr: "",

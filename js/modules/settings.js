@@ -105,7 +105,7 @@
       grid.appendChild(assetSlot("signature", "Authorised Signature", s2));
       grid.appendChild(assetSlot("stamp", "Company Stamp", s2));
       grid.appendChild(assetSlot("upiQr", "UPI QR Code", s2));
-      grid.appendChild(el("div.field.col-full", { html: "<div class='hint'>Logo appears in every invoice header. On <b>Retail Bills</b> it also becomes the faint centered watermark. GST invoices show the logo in the header only (no watermark).</div>" }));
+      grid.appendChild(el("div.field.col-full", { html: "<div class='hint'>Logo appears in every invoice header. On <b>Retail Bills</b>, the bundled second logo appears as the faint centered watermark. GST invoices show the logo in the header only (no watermark).</div>" }));
     } else if (tab === "text") {
       grid.appendChild(field("footerNote", "Retail Footer Note", "text", s2, { full: true }));
       grid.appendChild(field("terms", "Terms & Conditions", "textarea", s2, { full: true, rows: 4 }));
