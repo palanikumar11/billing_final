@@ -20,9 +20,10 @@
   pointer-events: none; z-index: 0;
 }
 .a4 .watermark .wm-inner { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 82%; }
-.a4 .watermark img { width: 62%; max-height: 58%; object-fit: contain; opacity: .13; }
-.a4 .watermark img.wm-gold { opacity: .34; filter: none; }   /* golden logo — bolder */
-.a4 .watermark .wm-name { font-size: 30px; font-weight: 900; color: #b8860b; opacity: .32; letter-spacing: 2px; text-align: center; margin-top: 10px; white-space: nowrap; }
+.a4 .watermark img { width: 62%; max-height: 58%; object-fit: contain; opacity: .08; }
+.a4 .watermark img.wm-retail { width: 72%; max-height: 62%; opacity: .095; filter: saturate(.85) contrast(.92); }
+.a4 .watermark img.wm-gold { opacity: .18; filter: none; }
+.a4 .watermark .wm-name { font-size: 30px; font-weight: 900; color: #b8860b; opacity: .14; letter-spacing: 2px; text-align: center; margin-top: 10px; white-space: nowrap; }
 .a4 .watermark .wm-text { font-size: 72px; font-weight: 800; color: #b8860b; opacity: .08; transform: rotate(-22deg); letter-spacing: 4px; text-align: center; }
 .a4 > .doc-inner { position: relative; z-index: 1; }
 

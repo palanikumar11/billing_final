@@ -21,6 +21,7 @@
   // Bundled default logo (SRI EZHUMALAIYAN TRADERS). Used when no custom logo
   // has been uploaded in Settings. App.DEFAULT_LOGO is shared with app.js.
   const DEFAULT_LOGO = (window.App && App.DEFAULT_LOGO) || "assets/logo.png";
+  const RETAIL_WATERMARK_LOGO = "assets/retail_watermark_logo.png";
 
   function logoSrc(s) { return s.logo || DEFAULT_LOGO; }
 
@@ -75,17 +76,17 @@
     const isGst = GST_TYPES.includes(inv.type);
     // Retail bill AND Estimate share the compact trade-name (…CRACKERS) layout.
     const isRetail = inv.type === "retail" || inv.type === "estimate" || inv.type === "quotation";
+    const showRetailWatermark = inv.type === "retail";
     const name = bizName(inv, s);
     const t = inv.totals || {};
     const page = el("div.a4" + (isRetail ? ".retail" : ""));
 
-    // Golden logo watermark — on Without-GST bills & estimates.
-    // Shows the gold logo with the trade name below it.
-    if (isRetail) {
+    // Mild second-logo watermark - only on the Without-GST retail invoice.
+    if (showRetailWatermark) {
       const wm = el("div.watermark");
       const inner = el("div.wm-inner");
-      const wmSrc = s.watermarkLogo || "assets/logo_gold.png";
-      if (wmSrc) inner.appendChild(el("img", { src: wmSrc, class: "wm-gold" }));
+      const wmSrc = s.retailWatermarkLogo || s.watermarkLogo || RETAIL_WATERMARK_LOGO;
+      if (wmSrc) inner.appendChild(el("img", { src: wmSrc, class: "wm-retail" }));
       inner.appendChild(el("div.wm-name", (name || "").toUpperCase()));
       wm.appendChild(inner);
       page.appendChild(wm);
@@ -216,8 +217,6 @@
       // Robust name: saved name → look up product → placeholder (never blank).
       const nm = it.name || (it.productId && (App.store.get("products", it.productId) || {}).name) || it.description || "Item";
       d.appendChild(el("div.desc", nm));
-      const pack = packText(it);
-      if (pack) d.appendChild(el("div.pack", pack));
       if (it.note) d.appendChild(el("div.note", it.note));
       tr.appendChild(d);
       if (showHsn) tr.appendChild(el("td.c", it.hsn || "-"));

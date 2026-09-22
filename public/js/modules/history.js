@@ -6,6 +6,7 @@
   const App = (window.App = window.App || {});
   const { el, esc, download } = App.dom;
   const F = App.format;
+  const SALE_TYPES = new Set(["retail", "gst", "challan"]);
 
   let filter = { q: "", type: "", pay: "", from: "", to: "" };
   let selected = new Set();   // ids of bills ticked for bulk actions
@@ -244,13 +245,25 @@
     });
   }
 
+  function stockQtyOf(it) {
+    return it && it.stockQty != null ? (Number(it.stockQty) || 0) : (Number(it && it.qty) || 0);
+  }
+
   function restoreStock(i) {
-    if (!["retail", "gst", "challan"].includes(i.type)) return;
+    if (!SALE_TYPES.has(i.type)) return;
     (i.items || []).forEach((it) => {
       if (!it.productId) return;
       const p = App.store.get("products", it.productId);
-      if (p) App.store.upsert("products", { ...p, stock: F.round2((Number(p.stock) || 0) + it.qty) });
+      if (!p) return;
+      const moveQty = stockQtyOf(it);
+      const balance = F.round2((Number(p.stock) || 0) + moveQty);
+      App.store.upsert("products", { ...p, stock: balance });
+      App.store.upsert("stockMoves", {
+        productId: p.id, productName: p.name, type: "restore",
+        qty: moveQty, balance, reason: i.number, date: F.todayISO(),
+      });
     });
+    App.ui.refresh("products");
   }
 
   function duplicate(i) {

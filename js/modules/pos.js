@@ -15,6 +15,7 @@
     ["retail", "Without GST Bill"], ["gst", "GST Bill"], ["estimate", "Estimation"],
   ];
   const PAY_MODES = ["Cash", "UPI", "Card", "Bank Transfer", "Credit"];
+  const SALE_TYPES = new Set(["retail", "gst", "challan"]);
 
   let st = null;
   function fresh() {
@@ -56,7 +57,7 @@
     return App.gst.computeBill(
       // Keep name/productId/unit/note so the SAVED bill (and its print/PDF) show them.
       st.items.map((it) => ({ productId: it.productId, name: it.name, unit: it.unit, note: it.note,
-        box: it.box, pcs: it.pcs, pkt: it.pkt, case: it.case,
+        stockQty: stockQtyOf(it),
         qty: it.qty, price: it.price, discountPct: it.discountPct, discountAmt: it.discountAmt,
         gstRate: it.gstRate, hsn: it.hsn, taxInclusive: st.taxInclusive })),
       { customerState: st.billState || s.state || "Tamil Nadu", homeState: s.state || "Tamil Nadu",
@@ -69,18 +70,66 @@
     );
   }
 
+  function normUnit(unit) {
+    const u = String(unit || "PCS").trim().toUpperCase();
+    return ["BOX", "PKT", "PCS", "CASE"].includes(u) ? u : "PCS";
+  }
+  function entryToBaseQty(item, entryQty, entryUnit) {
+    return F.round2(Number(entryQty) || 0);
+  }
+  function stockQtyOf(it) {
+    return it && it.stockQty != null ? (Number(it.stockQty) || 0) : (Number(it && it.qty) || 0);
+  }
+  function setLineQty(it, qty) {
+    const q = F.round2(Math.max(0, Number(qty) || 0));
+    const u = normUnit(it.entryUnit || it.unit);
+    it.qty = q;
+    it.stockQty = entryToBaseQty(it, q, u);
+    it.entryQty = q;
+    it.entryUnit = u;
+    it.unit = u;
+  }
+
   /* ---------------- Cart operations ---------------- */
-  function addProduct(p, qty = 1, price, note) {
+  function addProduct(p, qty = 1, price, note, entryUnit, stockQty) {
     const rate = price != null ? Number(price) || 0 : Number(p.sellingPrice) || 0;
     const existing = st.items.find((it) => it.productId === p.id);
-    if (existing) { existing.qty = F.round2((Number(existing.qty) || 0) + qty); existing.price = rate; if (note) existing.note = note; }
-    else st.items.push({ productId: p.id, name: p.name, hsn: p.hsn || "", unit: p.unit || "PCS",
-      box: Number(p.box) || 0, pcs: Number(p.pcs) || 0, pkt: Number(p.pkt) || 0, case: Number(p.case) || 0,
-      gstRate: Number(p.gstRate) || 0, price: rate, qty, discountPct: 0, discountAmt: 0, note: note || "", stock: p.stock });
+    const u = normUnit(entryUnit || p.unit);
+    const billQty = F.round2(Number(qty) || 0);
+    const moveQty = stockQty != null ? F.round2(Number(stockQty) || 0) : entryToBaseQty(p, billQty, u);
+    if (existing) {
+      existing.qty = F.round2((Number(existing.qty) || 0) + billQty);
+      existing.stockQty = F.round2(stockQtyOf(existing) + moveQty);
+      existing.entryQty = existing.qty;
+      existing.entryUnit = u;
+      existing.unit = u;
+      existing.price = rate;
+      if (note) existing.note = note;
+    }
+    else st.items.push({ productId: p.id, name: p.name, hsn: p.hsn || "", unit: u,
+      entryQty: billQty, entryUnit: u, stockQty: moveQty,
+      gstRate: Number(p.gstRate) || 0, price: rate, qty: billQty, discountPct: 0, discountAmt: 0, note: note || "", stock: p.stock });
     recompute();
   }
+
+  function applySaleStock(inv) {
+    if (!SALE_TYPES.has(inv.type)) return;
+    (inv.items || []).forEach((it) => {
+      if (!it.productId) return;
+      const p = App.store.get("products", it.productId);
+      if (!p) return;
+      const moveQty = stockQtyOf(it);
+      const balance = F.round2((Number(p.stock) || 0) - moveQty);
+      App.store.upsert("products", { ...p, stock: balance });
+      App.store.upsert("stockMoves", {
+        productId: p.id, productName: p.name, type: "sale",
+        qty: -moveQty, balance, reason: inv.number, date: inv.date,
+      });
+    });
+    App.ui.refresh("products");
+  }
   function addManual() {
-    st.items.push({ productId: "", name: "", hsn: "", unit: "PCS", box: 0, pcs: 0, pkt: 0, case: 0, gstRate: App.store.settings().defaultGstRate || 0, price: 0, qty: 1, discountPct: 0, discountAmt: 0, note: "" });
+    st.items.push({ productId: "", name: "", hsn: "", unit: "PCS", entryQty: 1, entryUnit: "PCS", stockQty: 1, gstRate: App.store.settings().defaultGstRate || 0, price: 0, qty: 1, discountPct: 0, discountAmt: 0, note: "" });
     recompute();
   }
 
@@ -202,7 +251,7 @@
       item.appendChild(el("div.pos-sr-ic", "📦"));
       const main = el("div.pos-sr-main");
       main.appendChild(el("div.pos-sr-name", p.name));
-      main.appendChild(el("div.pos-sr-meta", `${p.code || p.hsn || "-"} · GST ${p.gstRate || 0}%${packText(p) ? " · " + packText(p) : ""}`));
+      main.appendChild(el("div.pos-sr-meta", `${p.code || p.hsn || "-"} · GST ${p.gstRate || 0}% · ${p.unit || "PCS"}`));
       item.appendChild(main);
       const right = el("div.pos-sr-right");
       right.appendChild(el("div.pos-sr-price", F.money(p.sellingPrice)));
@@ -267,7 +316,8 @@
      all editable and stay in sync (Amount = Qty × Rate; typing an Amount
      back-solves the Rate). Packaging % appears on Without-GST bills only. */
   function openPreview(p) {
-    st._pending = { product: p, qty: 1, price: Number(p.sellingPrice) || 0 };
+    const u = normUnit(p.unit);
+    st._pending = { product: p, entryQty: 1, entryUnit: u, qty: 1, stockQty: entryToBaseQty(p, 1, u), price: Number(p.sellingPrice) || 0 };
     drawPreview();
     const q = st._pending._qtyInp;
     if (q) setTimeout(() => { q.focus(); q.select(); }, 20);
@@ -280,9 +330,9 @@
   }
   function addPending() {
     const pd = st._pending; if (!pd) return;
-    const qty = Number(pd.qty) || 0;
-    if (qty <= 0) { App.toast.error("Enter a quantity greater than 0"); return; }
-    addProduct(pd.product, qty, Number(pd.price) || 0, (pd.note || "").trim());
+    const stockQty = entryToBaseQty(pd.product, pd.entryQty, pd.entryUnit);
+    if ((Number(pd.entryQty) || 0) <= 0) { App.toast.error("Enter a quantity greater than 0"); return; }
+    addProduct(pd.product, Number(pd.entryQty) || 0, Number(pd.price) || 0, (pd.note || "").trim(), pd.entryUnit, stockQty);
     closePreview();
   }
 
@@ -298,7 +348,7 @@
     const info = el("div.pos-pv-info");
     info.appendChild(el("div.pos-pv-name", p.name));
     info.appendChild(el("div.pos-pv-meta",
-      `${p.hsn || p.code || "-"} · GST ${p.gstRate || 0}% · ${p.unit || "PCS"}${packText(p) ? " · " + packText(p) : ""} · Stock ${F.num(p.stock, p.stock % 1 ? 2 : 0)}`));
+      `${p.hsn || p.code || "-"} · GST ${p.gstRate || 0}% · ${p.unit || "PCS"} · Stock ${F.num(p.stock, p.stock % 1 ? 2 : 0)}`));
     head.appendChild(info);
     head.appendChild(el("button.icon-btn", { html: "✕", title: "Cancel", onClick: closePreview }));
     card.appendChild(head);
@@ -306,6 +356,10 @@
     // Amount shown here is qty × rate (before any GST) — the same figure the
     // Rate column drives, so editing either stays predictable.
     const amountOf = () => F.round2((Number(pd.qty) || 0) * (Number(pd.price) || 0));
+    const updateStockQty = () => {
+      pd.qty = Number(pd.entryQty) || 0;
+      pd.stockQty = entryToBaseQty(p, pd.entryQty, pd.entryUnit);
+    };
 
     const fields = el("div.pos-pv-fields");
     const fld = (label, node) => { const f = el("div.pos-pv-fld"); f.appendChild(el("label", label)); f.appendChild(node); return f; };
@@ -313,19 +367,24 @@
     // Qty — − / value / + stepper, editable
     const stepper = el("div.qty-stepper");
     const minus = el("button.qty-btn", { type: "button", html: "−", title: "Decrease" });
-    const qtyInp = el("input.qty-val", { type: "number", value: pd.qty, step: "any", min: "0" });
+    const qtyInp = el("input.qty-val", { type: "number", value: pd.entryQty, step: "any", min: "0" });
     const plus = el("button.qty-btn", { type: "button", html: "+", title: "Increase" });
     stepper.appendChild(minus); stepper.appendChild(qtyInp); stepper.appendChild(plus);
     pd._qtyInp = qtyInp;
 
     const rateInp = el("input", { type: "number", value: pd.price, step: "any", min: "0" });
     const amtInp = el("input.pos-pv-amt", { type: "number", value: amountOf(), step: "any", min: "0" });
+    const baseHint = el("div.muted", { style: { fontSize: "11px", marginTop: "4px" } });
 
     const syncAmt = () => { amtInp.value = amountOf(); };
-    const syncQtyRate = () => { qtyInp.value = pd.qty; rateInp.value = pd.price; };
-    minus.addEventListener("click", () => { pd.qty = Math.max(0, F.round2((Number(pd.qty) || 0) - 1)); syncQtyRate(); syncAmt(); });
-    plus.addEventListener("click", () => { pd.qty = F.round2((Number(pd.qty) || 0) + 1); syncQtyRate(); syncAmt(); });
-    qtyInp.addEventListener("input", (e) => { pd.qty = Number(e.target.value) || 0; syncAmt(); });
+    const syncQtyRate = () => {
+      qtyInp.value = pd.entryQty;
+      rateInp.value = pd.price;
+      baseHint.textContent = "Prints as " + F.num(pd.qty, pd.qty % 1 ? 2 : 0) + " " + pd.entryUnit + " · Stock deducts " + F.num(pd.stockQty, pd.stockQty % 1 ? 2 : 0) + " " + pd.entryUnit;
+    };
+    minus.addEventListener("click", () => { pd.entryQty = Math.max(0, F.round2((Number(pd.entryQty) || 0) - 1)); updateStockQty(); syncQtyRate(); syncAmt(); });
+    plus.addEventListener("click", () => { pd.entryQty = F.round2((Number(pd.entryQty) || 0) + 1); updateStockQty(); syncQtyRate(); syncAmt(); });
+    qtyInp.addEventListener("input", (e) => { pd.entryQty = Number(e.target.value) || 0; updateStockQty(); syncQtyRate(); syncAmt(); });
     rateInp.addEventListener("input", (e) => { pd.price = Number(e.target.value) || 0; syncAmt(); });
     // Typing an amount back-solves the rate (qty stays as entered)
     amtInp.addEventListener("input", (e) => {
@@ -335,7 +394,11 @@
     });
 
     // Qty + Amount show on every bill type; Packaging only on Without-GST.
-    fields.appendChild(fld("Qty", stepper));
+    const qtyWrap = el("div");
+    qtyWrap.appendChild(stepper);
+    qtyWrap.appendChild(baseHint);
+    syncQtyRate();
+    fields.appendChild(fld("Qty", qtyWrap));
     fields.appendChild(fld("Rate ₹", rateInp));
     fields.appendChild(fld("Amount ₹", amtInp));
 
@@ -433,13 +496,6 @@
   // printed invoice's Amount column carries, so the two always agree.
   function lineAmt(line) { return st.type === "gst" ? line.taxable : line.amount; }
 
-  function packText(it) {
-    return [["Box", it.box], ["Pcs", it.pcs], ["Pkt", it.pkt], ["Case", it.case]]
-      .filter(([, v]) => Number(v))
-      .map(([l, v]) => l + " " + F.num(Number(v), Number(v) % 1 ? 2 : 0))
-      .join(" · ");
-  }
-
   // All-products grid (tap a card to add). Filtered by the search box.
   function drawProductGrid() {
     const host = st._hosts.gridHost; host.innerHTML = "";
@@ -457,7 +513,7 @@
       const stockCls = outOf ? "out" : Number(p.stock) <= Number(p.minStock || 0) ? "low" : "";
       const card = el("button.pos-pcard" + (outOf ? ".out" : ""), { type: "button", title: p.name });
       card.appendChild(el("div.pos-pcard-name", p.name));
-      card.appendChild(el("div.pos-pcard-meta", `${p.hsn || "-"} · GST ${p.gstRate || 0}%${packText(p) ? " · " + packText(p) : ""}`));
+      card.appendChild(el("div.pos-pcard-meta", `${p.hsn || "-"} · GST ${p.gstRate || 0}% · ${p.unit || "PCS"}`));
       card.appendChild(el("div.pos-pcard-foot", [
         el("span.pos-pcard-price", F.money(p.sellingPrice)),
         el("span.pos-pcard-stock" + (stockCls ? "." + stockCls : ""), outOf ? "Out" : F.num(p.stock, p.stock % 1 ? 2 : 0)),
@@ -812,7 +868,6 @@
           sub.appendChild(el("span", "GST " + (it.gstRate || 0) + "% · "));
         }
         sub.appendChild(el("span", it.unit || ""));
-        if (packText(it)) sub.appendChild(el("span", " · " + packText(it)));
         nameTd.appendChild(sub);
       }
       else {
@@ -827,23 +882,17 @@
       const noteInp = el("input.cart-note", { type: "text", value: it.note || "", placeholder: "＋ note (prints on bill)" });
       noteInp.addEventListener("input", (e) => { it.note = e.target.value; });   // no redraw — keeps focus
       nameTd.appendChild(noteInp);
-      const packRow = el("div.cart-pack");
-      [["box", "Box"], ["pcs", "Pcs"], ["pkt", "Pkt"], ["case", "Case"]].forEach(([key, label]) => {
-        const pi = el("input", { type: "number", value: it[key] || "", step: "any", min: "0", title: label });
-        pi.addEventListener("input", (e) => { it[key] = Number(e.target.value) || 0; });
-        packRow.appendChild(el("label", [el("span", label), pi]));
-      });
-      nameTd.appendChild(packRow);
+      let qi = null;
       tr.appendChild(nameTd);
       // qty — − / value / + stepper card
       const qtyTd = el("td.num");
       const stepper = el("div.qty-stepper");
       const minus = el("button.qty-btn", { type: "button", html: "−", title: "Decrease" });
-      const qi = el("input.qty-val", { type: "number", value: it.qty || "", step: "any", min: "0" });
+      qi = el("input.qty-val", { type: "number", value: it.qty || "", step: "any", min: "0" });
       const plus = el("button.qty-btn", { type: "button", html: "+", title: "Increase" });
-      minus.addEventListener("click", () => { it.qty = Math.max(0, F.round2((Number(it.qty) || 0) - 1)); recompute(); });
-      plus.addEventListener("click", () => { it.qty = F.round2((Number(it.qty) || 0) + 1); recompute(); });
-      qi.addEventListener("input", (e) => { it.qty = Number(e.target.value) || 0; liveUpdate(); });
+      minus.addEventListener("click", () => { setLineQty(it, (Number(it.qty) || 0) - 1); recompute(); });
+      plus.addEventListener("click", () => { setLineQty(it, (Number(it.qty) || 0) + 1); recompute(); });
+      qi.addEventListener("input", (e) => { setLineQty(it, e.target.value); liveUpdate(); });
       stepper.appendChild(minus); stepper.appendChild(qi); stepper.appendChild(plus);
       qtyTd.appendChild(stepper); tr.appendChild(qtyTd);
       // rate
@@ -881,7 +930,7 @@
       rm.appendChild(el("button.icon-btn.cart-rm", { title: "Remove", html: App.icons.get("close"), style: { width: "28px", height: "28px" }, onClick: () => { st.items.splice(idx, 1); recompute(); } }));
       tr.appendChild(rm);
       tb.appendChild(tr);
-      if (it.stock != null && it.qty > it.stock) tr.style.background = "var(--danger-soft)";
+      if (it.stock != null && stockQtyOf(it) > it.stock) tr.style.background = "var(--danger-soft)";
     });
 
     // ← / → step BACKWARD / FORWARD through every cart field, flowing from the
@@ -1150,7 +1199,6 @@
     const override = (st.numberOverride || "").trim();
     const number = override || gen.number;
     const main = gen.main && !override; // only advance the counter when using the auto number
-    const isSale = st.type === "retail" || st.type === "gst";
     const paid = st.paid != null ? st.paid : (st.paymentMode === "Credit" ? 0 : t.grandTotal);
 
     // Use the inline-entered details; if a new name was typed (no existing
@@ -1176,32 +1224,21 @@
       customerAadhaar: cu.aadhaar || "", customerState: st.billState || s.state || "Tamil Nadu",
       customerAddress: cu.address || "", customerPin: cu.pin || "",
       items: t.lines.map((l) => ({ productId: l.productId, name: l.name, hsn: l.hsn, unit: l.unit,
-        box: l.box, pcs: l.pcs, pkt: l.pkt, case: l.case,
-        qty: l.qty, price: l.price, discount: l.discount, gstRate: l.gstRate, cgst: l.cgst, sgst: l.sgst, igst: l.igst, taxable: l.taxable, amount: l.amount, note: l.note })),
+        qty: l.qty, stockQty: l.stockQty, price: l.price, discount: l.discount, gstRate: l.gstRate, cgst: l.cgst, sgst: l.sgst, igst: l.igst, taxable: l.taxable, amount: l.amount, note: l.note })),
       totals: t, paymentMode: st.paymentMode, split: st.split, paid: F.round2(paid), note: st.note, status: "active",
       servedBy: s.businessName, vehicleNo: (st.vehicleNo || "").trim(),
     };
     App.store.upsert("invoices", inv);
     if (main) App.store.saveSettings({ nextInvoiceNo: (s.nextInvoiceNo || 1) + 1 });
 
-    // Reduce stock for sales (retail/gst/challan)
-    if (isSale || st.type === "challan") {
-      st.items.forEach((it) => {
-        if (!it.productId) return;
-        const p = App.store.get("products", it.productId);
-        if (p) {
-          App.store.upsert("products", { ...p, stock: F.round2((Number(p.stock) || 0) - it.qty) });
-          App.store.upsert("stockMoves", { productId: p.id, productName: p.name, type: "sale", qty: -it.qty, balance: F.round2((Number(p.stock) || 0) - it.qty), reason: number, date: inv.date });
-        }
-      });
-    }
+    applySaleStock(inv);
 
     App.toast.success(`${App.invoices.TITLES[st.type]} ${number} saved`);
     if (after === "print") App.invoices.print(inv);
     else if (after === "download") App.invoices.downloadPDF(inv);
     else App.invoices.preview(inv);
     st = fresh();
-    App.ui.refresh("pos"); App.ui.navigate("pos");
+    App.ui.refresh("pos"); App.ui.refresh("products"); App.ui.navigate("pos");
     App.refreshLowStock();
   }
 

@@ -13,18 +13,10 @@
     ["name", "Product Name", "text", true], ["code", "Product Code", "text"], ["sku", "SKU", "text"],
     ["category", "Category", "text"], ["hsn", "HSN Code", "text"],
     ["gstRate", "GST %", "number"], ["unit", "Unit", "text"],
-    ["box", "Box", "number"], ["pcs", "Pcs", "number"], ["pkt", "Pkt", "number"], ["case", "Case", "number"],
     ["purchasePrice", "Purchase Price", "number"], ["sellingPrice", "Selling Price", "number", true],
     ["mrp", "MRP", "number"], ["stock", "Current Stock", "number"], ["minStock", "Minimum Stock", "number"],
     ["description", "Description", "textarea"],
   ];
-
-  function packText(p) {
-    return [["Box", p.box], ["Pcs", p.pcs], ["Pkt", p.pkt], ["Case", p.case]]
-      .filter(([, v]) => Number(v))
-      .map(([l, v]) => l + " " + F.num(Number(v), Number(v) % 1 ? 2 : 0))
-      .join(" · ");
-  }
 
   function categories() {
     return [...new Set(App.store.all("products").map((p) => p.category).filter(Boolean))].sort();
@@ -85,7 +77,7 @@
     }
     const tw = el("div.table-wrap");
     const tbl = el("table.data");
-    tbl.innerHTML = `<thead><tr><th>Product</th><th>Category</th><th>HSN / GST</th><th>Pack</th><th class="num">Purchase</th><th class="num">Selling</th><th class="num">MRP</th><th class="num">Stock</th><th></th></tr></thead>`;
+    tbl.innerHTML = `<thead><tr><th>Product</th><th>Category</th><th>HSN / GST</th><th>Unit</th><th class="num">Purchase</th><th class="num">Selling</th><th class="num">MRP</th><th class="num">Stock</th><th></th></tr></thead>`;
     const tb = el("tbody");
     rows.forEach((p) => {
       const lowCls = Number(p.stock) <= 0 ? "red" : Number(p.stock) <= Number(p.minStock || 0) ? "amber" : "green";
@@ -94,7 +86,7 @@
         <td><div style="font-weight:600">${esc(p.name)}</div><div class="muted" style="font-size:11px">${esc(p.code || "")}${p.sku ? " · " + esc(p.sku) : ""}</div></td>
         <td>${p.category ? '<span class="chip">' + esc(p.category) + "</span>" : '<span class="muted">—</span>'}</td>
         <td>${esc(p.hsn || "—")} <span class="muted">· ${p.gstRate || 0}%</span></td>
-        <td><span class="muted" style="font-size:11px">${esc(packText(p) || "—")}</span></td>
+        <td><span class="chip">${esc(p.unit || "PCS")}</span></td>
         <td class="num mono">${F.money(p.purchasePrice)}</td>
         <td class="num mono">${F.money(p.sellingPrice)}</td>
         <td class="num mono muted">${F.money(p.mrp)}</td>
@@ -121,11 +113,15 @@
       const field = el("div.field" + (type === "textarea" ? ".col-full" : ""));
       field.appendChild(el("label", { html: esc(label) + (req ? ' <span class="req">*</span>' : "") }));
       let input;
-      if (type === "textarea") input = el("textarea");
+      if (key === "unit") {
+        input = el("select");
+        ["PCS", "BOX", "PKT", "CASE"].forEach((u) => input.appendChild(el("option", { value: u, selected: String(p[key] || "PCS").toUpperCase() === u }, u)));
+      }
+      else if (type === "textarea") input = el("textarea");
       // step:"any" lets number fields (GST %, prices, stock) accept decimals
       // like 12.5 — without it the browser defaults to step=1 and rejects them.
       else input = el("input", type === "number" ? { type, step: "any" } : { type });
-      input.value = p[key] != null ? p[key] : (key === "gstRate" ? s.defaultGstRate : key === "minStock" ? s.lowStockThresholdDefault : "");
+      if (key !== "unit") input.value = p[key] != null ? p[key] : (key === "gstRate" ? s.defaultGstRate : key === "minStock" ? s.lowStockThresholdDefault : "");
       inputs[key] = input;
       field.appendChild(input);
       form.appendChild(field);
@@ -236,15 +232,15 @@
   // A ready-to-fill Excel template with headers + two example rows.
   function downloadSample() {
     const cols = FIELDS.map((f) => f[0]);
-    const example1 = { name: "Sparkler 10cm (1 Box)", code: "P2001", sku: "SKU2001", category: "Fireworks", hsn: "36041000", gstRate: 18, unit: "BOX", box: 1, pcs: 10, pkt: 0, case: 0, purchasePrice: 120, sellingPrice: 180, mrp: 200, stock: 50, minStock: 10, description: "Example row — replace with your product" };
-    const example2 = { name: "Flower Pot (Big)", code: "P2002", sku: "SKU2002", category: "Fireworks", hsn: "36041000", gstRate: 18, unit: "PCS", box: 0, pcs: 1, pkt: 1, case: 0, purchasePrice: 15, sellingPrice: 25, mrp: 30, stock: 200, minStock: 25, description: "" };
+    const example1 = { name: "Sparkler 10cm", code: "P2001", sku: "SKU2001", category: "Fireworks", hsn: "36041000", gstRate: 18, unit: "BOX", purchasePrice: 120, sellingPrice: 180, mrp: 200, stock: 50, minStock: 10, description: "Example row — replace with your product" };
+    const example2 = { name: "Flower Pot (Big)", code: "P2002", sku: "SKU2002", category: "Fireworks", hsn: "36041000", gstRate: 18, unit: "PCS", purchasePrice: 15, sellingPrice: 25, mrp: 30, stock: 200, minStock: 25, description: "" };
     const blob = App.xlsx.fromObjects([example1, example2], cols, "Products Template");
     download("products_sample_template.xlsx", blob);
     App.toast.success("Sample Excel template downloaded");
   }
   function importMenu() {
     App.modal.open({ title: "Import Products", size: "narrow",
-      body: el("div", { html: "<p class='muted' style='font-size:13px'>Bulk import products from a <b>CSV</b> or <b>JSON</b> file. Existing products with the same <b>code</b> are updated; others are added.</p><p class='muted' style='font-size:12px;margin-top:8px'>Download the sample below, fill it in Excel, then <b>Save As → CSV</b> and import. Columns: name, code, sku, category, hsn, gstRate, unit, box, pcs, pkt, case, purchasePrice, sellingPrice, mrp, stock, minStock, description.</p>" }),
+      body: el("div", { html: "<p class='muted' style='font-size:13px'>Bulk import products from a <b>CSV</b> or <b>JSON</b> file. Existing products with the same <b>code</b> are updated; others are added.</p><p class='muted' style='font-size:12px;margin-top:8px'>Download the sample below, fill it in Excel, then <b>Save As → CSV</b> and import. Columns: name, code, sku, category, hsn, gstRate, unit, purchasePrice, sellingPrice, mrp, stock, minStock, description.</p>" }),
       footer: [
         { text: "⬇ Sample Excel", onClick: () => { downloadSample(); return false; } },
         { text: "Choose CSV", class: "primary", onClick: () => doImport("csv") },
