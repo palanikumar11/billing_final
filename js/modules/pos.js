@@ -56,7 +56,7 @@
     const s = App.store.settings() || {};
     return App.gst.computeBill(
       // Keep name/productId/unit/note so the SAVED bill (and its print/PDF) show them.
-      st.items.map((it) => ({ productId: it.productId, name: it.name, unit: it.unit, note: it.note,
+      st.items.map((it) => ({ productId: it.productId, name: it.name, unit: it.unit, note: it.note, mrp: it.mrp,
         stockQty: stockQtyOf(it),
         qty: it.qty, price: it.price, discountPct: it.discountPct, discountAmt: it.discountAmt,
         gstRate: it.gstRate, hsn: it.hsn, taxInclusive: st.taxInclusive })),
@@ -104,11 +104,12 @@
       existing.entryUnit = u;
       existing.unit = u;
       existing.price = rate;
+      existing.mrp = Number(p.mrp) || 0;
       if (note) existing.note = note;
     }
     else st.items.push({ productId: p.id, name: p.name, hsn: p.hsn || "", unit: u,
       entryQty: billQty, entryUnit: u, stockQty: moveQty,
-      gstRate: Number(p.gstRate) || 0, price: rate, qty: billQty, discountPct: 0, discountAmt: 0, note: note || "", stock: p.stock });
+      gstRate: Number(p.gstRate) || 0, price: rate, mrp: Number(p.mrp) || 0, qty: billQty, discountPct: 0, discountAmt: 0, note: note || "", stock: p.stock });
     recompute();
   }
 
@@ -1225,7 +1226,7 @@
       customerAadhaar: cu.aadhaar || "", customerState: st.billState || s.state || "Tamil Nadu",
       customerAddress: cu.address || "", customerPin: cu.pin || "",
       items: t.lines.map((l) => ({ productId: l.productId, name: l.name, hsn: l.hsn, unit: l.unit,
-        qty: l.qty, stockQty: l.stockQty, price: l.price, discount: l.discount, gstRate: l.gstRate, cgst: l.cgst, sgst: l.sgst, igst: l.igst, taxable: l.taxable, amount: l.amount, note: l.note })),
+        qty: l.qty, stockQty: l.stockQty, price: l.price, mrp: l.mrp, discount: l.discount, gstRate: l.gstRate, cgst: l.cgst, sgst: l.sgst, igst: l.igst, taxable: l.taxable, amount: l.amount, note: l.note })),
       totals: t, paymentMode: st.paymentMode, split: st.split, paid: F.round2(paid), note: st.note, status: "active",
       servedBy: s.businessName, vehicleNo: (st.vehicleNo || "").trim(),
     };

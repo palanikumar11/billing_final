@@ -32,8 +32,23 @@
     return d.length === 12 ? d.replace(/(\d{4})(?=\d)/g, "$1 ") : String(v || "").trim();
   }
 
-  function lineDiscount(it) {
-    const gross = (Number(it.qty) || 0) * (Number(it.price) || 0);
+  function lineMrpRate(it) {
+    const p = it.productId ? App.store.get("products", it.productId) : null;
+    const mrp = Number(it.mrp) || Number(p && p.mrp) || 0;
+    const price = Number(it.price) || 0;
+    return mrp > 0 ? mrp : price;
+  }
+
+  function lineGrossAmount(it) {
+    return (Number(it.qty) || 0) * lineMrpRate(it);
+  }
+
+  function lineSellingGross(it) {
+    return (Number(it.qty) || 0) * (Number(it.price) || 0);
+  }
+
+  function lineSellingDiscount(it) {
+    const gross = lineSellingGross(it);
     if (it.discount != null) return App.gst.round2(Math.min(Math.max(Number(it.discount) || 0, 0), gross));
     let disc = 0;
     if (it.discountPct) disc += gross * ((Number(it.discountPct) || 0) / 100);
@@ -41,24 +56,29 @@
     return App.gst.round2(Math.min(Math.max(disc, 0), gross));
   }
 
+  function lineDiscount(it) {
+    const gross = lineGrossAmount(it);
+    const net = lineNetAmount(it);
+    const disc = Math.max(lineSellingDiscount(it), gross - net);
+    return App.gst.round2(Math.min(Math.max(disc, 0), gross));
+  }
+
   function lineNetAmount(it) {
     if (it.amount != null) return Number(it.amount) || 0;
-    const gross = (Number(it.qty) || 0) * (Number(it.price) || 0);
-    return App.gst.round2(gross - lineDiscount(it));
+    return App.gst.round2(lineSellingGross(it) - lineSellingDiscount(it));
   }
 
   function totalDiscount(inv, t) {
     const saved = Number(t.totalDiscount) || 0;
-    if (saved) return saved;
     const itemsDisc = (inv.items || []).reduce((sum, it) => sum + lineDiscount(it), 0);
-    return App.gst.round2(itemsDisc + (Number(t.billDiscount) || 0));
+    const visible = itemsDisc + (Number(t.billDiscount) || 0);
+    return App.gst.round2(Math.max(saved, visible));
   }
 
   // Taxable value of a line (falls back for older saved bills that predate the field).
   function lineTaxable(it) {
     if (it.taxable != null) return Number(it.taxable) || 0;
-    const gross = (Number(it.qty) || 0) * (Number(it.price) || 0);
-    return App.gst.round2(gross - lineDiscount(it));
+    return lineNetAmount(it);
   }
 
   function packText(it) {
@@ -243,7 +263,7 @@
       tr.appendChild(d);
       if (showHsn) tr.appendChild(el("td.c", it.hsn || "-"));
       tr.appendChild(el("td.r", F.num(it.qty, it.qty % 1 ? 3 : 0) + " " + (it.unit || "")));
-      tr.appendChild(el("td.r", F.num(it.price)));
+      tr.appendChild(el("td.r", F.num(showHsn ? it.price : lineMrpRate(it))));
       if (showHsn) {
         if (t.intra) {
           tr.appendChild(el("td.r", (it.gstRate / 2) + "%")); tr.appendChild(el("td.r", F.num(it.cgst)));
