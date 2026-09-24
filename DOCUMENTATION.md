@@ -112,8 +112,8 @@ and a right details panel.
   printable Note. Amount = Qty × Rate; typing an Amount **back-solves** the Rate.
   `← →` move between fields, `Enter` adds, `Esc` cancels.
 - **Items in Bill** (the cart): every added line is editable in place — Qty (with
-  −/+ stepper), Rate, Disc%, and (GST bills) the per-line GST%. `← →` walk
-  **forward / backward** across the Qty → Rate → Disc% fields, flowing from one
+  −/+ stepper), Rate, Disc ₹, and (GST bills) the per-line GST%. `← →` walk
+  **forward / backward** across the Qty → Rate → Disc ₹ fields, flowing from one
   row into the next, so a whole bill can be corrected from the keyboard.
 
 **Right — finalise the bill**
@@ -277,6 +277,6 @@ README.md             short project overview
 - **Retail bill:** the **"Taxable Value"** total row is now hidden on
   Without-GST / retail bills (it's a GST-only concept; Sub Total already shows the
   net amount).
-- **Cart rows:** `← →` arrow-key navigation added across the **Qty → Rate → Disc%**
+- **Cart rows:** `← →` arrow-key navigation added across the **Qty → Rate → Disc ₹**
   fields of already-added products, flowing between rows — matching the product
   preview and Manual GST fields.

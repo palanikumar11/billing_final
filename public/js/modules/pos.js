@@ -835,11 +835,11 @@
     if (st._cartCount) st._cartCount.textContent = st.items.length + (st.items.length === 1 ? " item" : " items");
     if (!st.items.length) { host.appendChild(el("div.empty-state", [el("div.big", "🛒"), el("p", "Search to add products."), el("p.muted", { style: { fontSize: "12px" } }, "Tip: press Enter to add the top match instantly.")])); return; }
     const tbl = el("table.data.cart-table");
-    tbl.innerHTML = `<thead><tr><th>Item</th><th class="num" style="width:104px">Qty</th><th class="num" style="width:88px">Rate</th><th class="num" style="width:64px">Disc%</th><th class="num" style="width:104px">Amt</th><th style="width:36px"></th></tr></thead>`;
+    tbl.innerHTML = `<thead><tr><th>Item</th><th class="num" style="width:104px">Qty</th><th class="num" style="width:88px">Rate</th><th class="num" style="width:72px">Disc ₹</th><th class="num" style="width:104px">Amt</th><th style="width:36px"></th></tr></thead>`;
     const tb = el("tbody");
     const t = totals();
     // Flat list of every editable numeric field in the cart, row by row
-    // (Qty → Rate → Disc% for line 1, then line 2, …). ← / → walk this list so a
+    // (Qty → Rate → Disc ₹ for line 1, then line 2, …). ← / → walk this list so a
     // whole bill can be corrected from the keyboard without reaching for the mouse.
     const navCells = [];
     st._amountInputs = [];
@@ -900,12 +900,12 @@
       const ri = el("input", { type: "number", value: it.price, step: "any" });
       ri.addEventListener("input", (e) => { it.price = Number(e.target.value) || 0; liveUpdate(); });
       rateTd.appendChild(ri); tr.appendChild(rateTd);
-      // disc %
+      // discount amount
       const dTd = el("td.num");
-      const di = el("input", { type: "number", value: it.discountPct, step: "any" });
-      di.addEventListener("input", (e) => { it.discountPct = Number(e.target.value) || 0; liveUpdate(); });
+      const di = el("input", { type: "number", value: it.discountAmt, step: "any", min: "0", title: "Discount amount for this line" });
+      di.addEventListener("input", (e) => { it.discountAmt = Number(e.target.value) || 0; liveUpdate(); });
       dTd.appendChild(di); tr.appendChild(dTd);
-      navCells.push(qi, ri, di);   // Qty → Rate → Disc% for ← / → navigation
+      navCells.push(qi, ri, di);   // Qty → Rate → Disc ₹ for ← / → navigation
       // amount — editable: type a line total and the rate back-fills so amounts
       // can be entered by hand (qty defaults to 1 if none has been set yet).
       const amtTd = el("td.num.mono", { style: { fontWeight: 700 } });
@@ -914,8 +914,9 @@
         const amt = Number(e.target.value) || 0;
         if ((Number(it.qty) || 0) <= 0) { it.qty = 1; qi.value = it.qty; }
         const q = Number(it.qty) || 1;
+        const discAmt = Number(it.discountAmt) || 0;
         const discF = 1 - (Number(it.discountPct) || 0) / 100;
-        let price = discF > 0 ? amt / (q * discF) : amt;
+        let price = discF > 0 ? (amt + discAmt) / (q * discF) : amt + discAmt;
         if (st.type === "gst" && st.taxInclusive) price = price * (1 + (Number(it.gstRate) || 0) / 100);
         it.price = F.round2(price);
         ri.value = it.price;
@@ -923,7 +924,7 @@
       });
       amtTd.appendChild(aInp);
       st._amountInputs[idx] = aInp;
-      navCells.push(aInp);   // Qty → Rate → Disc% → Amt for ← / → navigation
+      navCells.push(aInp);   // Qty → Rate → Disc ₹ → Amt for ← / → navigation
       tr.appendChild(amtTd);
       // remove
       const rm = el("td");

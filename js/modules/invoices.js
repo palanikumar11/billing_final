@@ -32,11 +32,33 @@
     return d.length === 12 ? d.replace(/(\d{4})(?=\d)/g, "$1 ") : String(v || "").trim();
   }
 
+  function lineDiscount(it) {
+    const gross = (Number(it.qty) || 0) * (Number(it.price) || 0);
+    if (it.discount != null) return App.gst.round2(Math.min(Math.max(Number(it.discount) || 0, 0), gross));
+    let disc = 0;
+    if (it.discountPct) disc += gross * ((Number(it.discountPct) || 0) / 100);
+    if (it.discountAmt) disc += Number(it.discountAmt) || 0;
+    return App.gst.round2(Math.min(Math.max(disc, 0), gross));
+  }
+
+  function lineNetAmount(it) {
+    if (it.amount != null) return Number(it.amount) || 0;
+    const gross = (Number(it.qty) || 0) * (Number(it.price) || 0);
+    return App.gst.round2(gross - lineDiscount(it));
+  }
+
+  function totalDiscount(inv, t) {
+    const saved = Number(t.totalDiscount) || 0;
+    if (saved) return saved;
+    const itemsDisc = (inv.items || []).reduce((sum, it) => sum + lineDiscount(it), 0);
+    return App.gst.round2(itemsDisc + (Number(t.billDiscount) || 0));
+  }
+
   // Taxable value of a line (falls back for older saved bills that predate the field).
   function lineTaxable(it) {
     if (it.taxable != null) return Number(it.taxable) || 0;
-    const gross = (Number(it.qty) || 0) * (Number(it.price) || 0) - (Number(it.discount) || 0);
-    return App.gst.round2(gross);
+    const gross = (Number(it.qty) || 0) * (Number(it.price) || 0);
+    return App.gst.round2(gross - lineDiscount(it));
   }
 
   function packText(it) {
@@ -231,13 +253,14 @@
           tr.appendChild(el("td.r", "0%")); tr.appendChild(el("td.r", "0.00")); // Cess (not tracked)
         }
       } else {
-        tr.appendChild(el("td.r", it.discount ? F.num(it.discount) : "-"));
+        const disc = lineDiscount(it);
+        tr.appendChild(el("td.r", disc ? F.num(disc) : "-"));
       }
       // On a tax invoice the Amount column is the TAXABLE value — the CGST/SGST
       // (or IGST) columns beside it are what gets added on top in the totals box.
       // Printing the tax-inclusive amount here made the column disagree with the
       // Sub Total and read as though the tax were counted twice.
-      tr.appendChild(el("td.r", F.num(showHsn ? lineTaxable(it) : it.amount)));
+      tr.appendChild(el("td.r", F.num(showHsn ? lineTaxable(it) : lineNetAmount(it))));
       tbody.appendChild(tr);
     });
 
@@ -250,7 +273,7 @@
     const items = inv.items || [];
     const qtyTotal = items.reduce((a, it) => a + (Number(it.qty) || 0), 0);
     // Matches the Amount column above it: taxable on a GST bill, net otherwise.
-    const amtTotal = items.reduce((a, it) => a + (showHsn ? lineTaxable(it) : Number(it.amount) || 0), 0);
+    const amtTotal = items.reduce((a, it) => a + (showHsn ? lineTaxable(it) : lineNetAmount(it)), 0);
     const tfoot = el("tfoot");
     const ftr = el("tr");
     const ftd = (txt, cls, span) => { const e = el("td" + (cls ? "." + cls : ""), txt); if (span) e.colSpan = span; return e; };
@@ -293,7 +316,8 @@
     // Right: totals box
     const tb2 = el("div.totals-box");
     const trow = (k, v, cls) => { const r = el("div.trow" + (cls ? "." + cls : "")); r.appendChild(el("span.k", k)); r.appendChild(el("span.mono", v)); return r; };
-    if (t.totalDiscount) tb2.appendChild(trow("Discount", "- " + F.num(t.totalDiscount)));
+    const discTotal = totalDiscount(inv, t);
+    if (discTotal) tb2.appendChild(trow("Discount", "- " + F.num(discTotal)));
     // Taxable Value is a GST concept — the Without-GST / retail bill has no tax,
     // so this row is omitted there (Sub Total already shows the net amount).
     if (isGst) tb2.appendChild(trow("Taxable Value", F.num(t.taxable)));
