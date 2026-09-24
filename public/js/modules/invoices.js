@@ -22,8 +22,10 @@
   // has been uploaded in Settings. App.DEFAULT_LOGO is shared with app.js.
   const DEFAULT_LOGO = (window.App && App.DEFAULT_LOGO) || "assets/logo.png";
   const RETAIL_WATERMARK_LOGO = "assets/retail_watermark_logo.png";
+  const GOLD_LOGO = "assets/logo_gold.png";
 
   function logoSrc(s) { return s.logo || DEFAULT_LOGO; }
+  function retailWatermarkSrc(s) { return s.retailWatermarkLogo || s.watermarkLogo || RETAIL_WATERMARK_LOGO; }
 
   // Aadhaar prints in the readable 4-4-4 grouping ("1234 5678 9012") whether it
   // was saved with spaces or as bare digits.
@@ -109,6 +111,18 @@
     return el("div." + cls, [el("div.logo-fallback", (s.businessName || "R").trim()[0].toUpperCase())]);
   }
 
+  function fallbackImg(src, fallbacks, attrs = {}) {
+    const choices = Array.isArray(fallbacks) ? fallbacks.filter(Boolean) : [fallbacks].filter(Boolean);
+    return el("img", { ...attrs, src, onError: (e) => {
+      const img = e.currentTarget;
+      if (!img) return;
+      const current = img.getAttribute("src");
+      const next = choices.find((fallback) => fallback !== current);
+      if (next) img.setAttribute("src", next);
+      else img.style.display = "none";
+    } });
+  }
+
   // Business name shown on the document:
   //  - GST tax invoice   -> registered name (…TRADERS)
   //  - Non-GST / retail   -> trade name (…CRACKERS)
@@ -131,8 +145,8 @@
     if (showRetailWatermark) {
       const wm = el("div.watermark");
       const inner = el("div.wm-inner");
-      const wmSrc = s.retailWatermarkLogo || RETAIL_WATERMARK_LOGO;
-      if (wmSrc) inner.appendChild(el("img", { src: wmSrc, class: "wm-retail" }));
+      const wmSrc = retailWatermarkSrc(s);
+      if (wmSrc) inner.appendChild(fallbackImg(wmSrc, [RETAIL_WATERMARK_LOGO, GOLD_LOGO], { class: "wm-retail wm-gold", alt: "Gold logo watermark" }));
       inner.appendChild(el("div.wm-name", (name || "").toUpperCase()));
       wm.appendChild(inner);
       page.appendChild(wm);
@@ -430,18 +444,26 @@
   async function waitForImage(img, timeout = 1800) {
     if (!img) return;
     if (img.complete && img.naturalWidth > 0) return;
-    const decoded = img.decode ? img.decode().catch(() => {}) : null;
-    const loaded = new Promise((resolve) => {
-      const done = () => {
-        img.removeEventListener("load", done);
-        img.removeEventListener("error", done);
-        resolve();
-      };
-      img.addEventListener("load", done, { once: true });
-      img.addEventListener("error", done, { once: true });
-    });
-    const timer = new Promise((resolve) => setTimeout(resolve, timeout));
-    await Promise.race([decoded || loaded, loaded, timer]);
+    const end = Date.now() + timeout;
+    while (Date.now() < end) {
+      await new Promise((resolve) => {
+        let settled = false;
+        const done = () => {
+          if (settled) return;
+          settled = true;
+          img.removeEventListener("load", done);
+          img.removeEventListener("error", done);
+          resolve();
+        };
+        img.addEventListener("load", done, { once: true });
+        img.addEventListener("error", done, { once: true });
+        setTimeout(done, 80);
+      });
+      if (img.complete && img.naturalWidth > 0) {
+        if (img.decode) await img.decode().catch(() => {});
+        return;
+      }
+    }
   }
   async function waitForImages(root, timeout) {
     await Promise.all(Array.from(root.querySelectorAll("img")).map((img) => waitForImage(img, timeout)));
