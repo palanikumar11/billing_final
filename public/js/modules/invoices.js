@@ -101,7 +101,11 @@
 
   function logoNode(s, cls) {
     const src = logoSrc(s);
-    if (src) return el("div." + cls, [el("img", { src })]);
+    if (src) return el("div." + cls, [el("img", { src, alt: "Logo", onError: (e) => {
+      const img = e.currentTarget;
+      if (img && img.getAttribute("src") !== DEFAULT_LOGO) img.setAttribute("src", DEFAULT_LOGO);
+      else if (img) img.replaceWith(el("div.logo-fallback", (s.businessName || "R").trim()[0].toUpperCase()));
+    } })]);
     return el("div." + cls, [el("div.logo-fallback", (s.businessName || "R").trim()[0].toUpperCase())]);
   }
 
@@ -423,13 +427,34 @@
     return frag;
   }
 
-  function print(inv) {
+  async function waitForImage(img, timeout = 1800) {
+    if (!img) return;
+    if (img.complete && img.naturalWidth > 0) return;
+    const decoded = img.decode ? img.decode().catch(() => {}) : null;
+    const loaded = new Promise((resolve) => {
+      const done = () => {
+        img.removeEventListener("load", done);
+        img.removeEventListener("error", done);
+        resolve();
+      };
+      img.addEventListener("load", done, { once: true });
+      img.addEventListener("error", done, { once: true });
+    });
+    const timer = new Promise((resolve) => setTimeout(resolve, timeout));
+    await Promise.race([decoded || loaded, loaded, timer]);
+  }
+  async function waitForImages(root, timeout) {
+    await Promise.all(Array.from(root.querySelectorAll("img")).map((img) => waitForImage(img, timeout)));
+  }
+
+  async function print(inv) {
     const root = document.getElementById("print-root");
     root.innerHTML = "";
     const vp = el("div.doc-viewport", { style: { background: "#fff", padding: "0", gap: "0" } });
     vp.appendChild(buildDocument(inv));
     root.appendChild(vp);
-    setTimeout(() => { window.print(); }, 120);
+    await waitForImages(vp, 2200);
+    setTimeout(() => { window.print(); }, 60);
   }
 
   // Preview modal with actions
@@ -459,6 +484,7 @@
         const blob = await res.blob();
         const durl = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
         img.setAttribute("src", durl);
+        await waitForImage(img, 1200);
       } catch (e) { /* leave as-is */ }
     }));
   }
@@ -517,6 +543,7 @@
     document.body.appendChild(holder);
     try {
       await inlineImages(holder);
+      await waitForImages(holder, 1800);
       const css = await invoiceCss();
       const a4s = Array.from(holder.querySelectorAll(".a4"));
       const out = [];

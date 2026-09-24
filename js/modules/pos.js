@@ -80,6 +80,18 @@
   function stockQtyOf(it) {
     return it && it.stockQty != null ? (Number(it.stockQty) || 0) : (Number(it && it.qty) || 0);
   }
+  function mrpOf(item) {
+    return Number(item && item.mrp) || Number(item && item.price) || Number(item && item.sellingPrice) || 0;
+  }
+  function sellingOf(item) {
+    return Number(item && item.sellingPrice) || Number(item && item.price) || 0;
+  }
+  function priceMeta(item) {
+    const mrp = mrpOf(item);
+    const selling = sellingOf(item);
+    if (mrp > 0 && Math.abs(mrp - selling) >= 0.01) return "MRP " + F.money(mrp);
+    return mrp > 0 ? "MRP " + F.money(mrp) : "";
+  }
   function setLineQty(it, qty) {
     const q = F.round2(Math.max(0, Number(qty) || 0));
     const u = normUnit(it.entryUnit || it.unit);
@@ -256,6 +268,8 @@
       item.appendChild(main);
       const right = el("div.pos-sr-right");
       right.appendChild(el("div.pos-sr-price", F.money(p.sellingPrice)));
+      const mrpTxt = priceMeta(p);
+      if (mrpTxt) right.appendChild(el("div.pos-sr-mrp", mrpTxt));
       right.appendChild(el("div.pos-sr-stock" + (stockCls ? "." + stockCls : ""), outOf ? "Out" : "Stock " + F.num(p.stock, p.stock % 1 ? 2 : 0)));
       item.appendChild(right);
       const add = el("button.pos-sr-add", { type: "button", html: "＋", title: "Add to bill" });
@@ -348,8 +362,9 @@
     head.appendChild(el("div.pos-pv-ic", "📦"));
     const info = el("div.pos-pv-info");
     info.appendChild(el("div.pos-pv-name", p.name));
+    const mrpTxt = priceMeta(p);
     info.appendChild(el("div.pos-pv-meta",
-      `${p.hsn || p.code || "-"} · GST ${p.gstRate || 0}% · ${p.unit || "PCS"} · Stock ${F.num(p.stock, p.stock % 1 ? 2 : 0)}`));
+      `${p.hsn || p.code || "-"} · GST ${p.gstRate || 0}% · ${p.unit || "PCS"} · ${mrpTxt ? mrpTxt + " · " : ""}Stock ${F.num(p.stock, p.stock % 1 ? 2 : 0)}`));
     head.appendChild(info);
     head.appendChild(el("button.icon-btn", { html: "✕", title: "Cancel", onClick: closePreview }));
     card.appendChild(head);
@@ -400,6 +415,9 @@
     qtyWrap.appendChild(baseHint);
     syncQtyRate();
     fields.appendChild(fld("Qty", qtyWrap));
+    if (Number(p.mrp)) {
+      fields.appendChild(fld("MRP ₹", el("input.pos-pv-mrp", { type: "number", value: Number(p.mrp) || 0, readonly: true, tabindex: "-1" })));
+    }
     fields.appendChild(fld("Rate ₹", rateInp));
     fields.appendChild(fld("Amount ₹", amtInp));
 
@@ -515,6 +533,8 @@
       const card = el("button.pos-pcard" + (outOf ? ".out" : ""), { type: "button", title: p.name });
       card.appendChild(el("div.pos-pcard-name", p.name));
       card.appendChild(el("div.pos-pcard-meta", `${p.hsn || "-"} · GST ${p.gstRate || 0}% · ${p.unit || "PCS"}`));
+      const mrpTxt = priceMeta(p);
+      if (mrpTxt) card.appendChild(el("div.pos-pcard-mrp", mrpTxt));
       card.appendChild(el("div.pos-pcard-foot", [
         el("span.pos-pcard-price", F.money(p.sellingPrice)),
         el("span.pos-pcard-stock" + (stockCls ? "." + stockCls : ""), outOf ? "Out" : F.num(p.stock, p.stock % 1 ? 2 : 0)),
@@ -869,6 +889,8 @@
           sub.appendChild(el("span", "GST " + (it.gstRate || 0) + "% · "));
         }
         sub.appendChild(el("span", it.unit || ""));
+        const lineMrp = priceMeta(it);
+        if (lineMrp) sub.appendChild(el("span", " · " + lineMrp));
         nameTd.appendChild(sub);
       }
       else {

@@ -227,6 +227,7 @@ table.data .row-actions { display: flex; gap: 4px; justify-content: flex-end; }
 .pos-sr-meta { font-size: 11.5px; color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .pos-sr-right { text-align: right; flex-shrink: 0; }
 .pos-sr-price { font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; }
+.pos-sr-mrp { font-size: 10.5px; color: var(--fg-muted); text-decoration: line-through; margin-top: 1px; }
 .pos-sr-stock { font-size: 11px; color: var(--success); font-weight: 700; margin-top: 1px; }
 .pos-sr-stock.low { color: var(--warning); }
 .pos-sr-stock.out { color: var(--danger); }
@@ -263,6 +264,7 @@ table.data .row-actions { display: flex; gap: 4px; justify-content: flex-end; }
 /* Amount reads as the money figure — gold-tinted, bold, tabular */
 .pos-pv-amt { font-weight: 800; color: var(--gold-600); }
 .pos-pv-fld > .pos-pv-amt { background: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 40%, var(--border)); }
+.pos-pv-mrp { color: var(--fg-muted); text-decoration: line-through; background: var(--surface-2); }
 /* Whichever field is focused pops so the arrow-jump is obvious */
 .pos-pv-fld > input:focus, .pos-pv-fld > select:focus,
 .pos-pv-fld .qty-val:focus { background: var(--brand-soft); }
@@ -331,6 +333,7 @@ input[type="date"], input[type="month"], input[type="time"] { color-scheme: ligh
 .pos-pcard.out { opacity: .55; }
 .pos-pcard-name { font-weight: 700; font-size: 12.5px; line-height: 1.25; color: var(--fg); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pos-pcard-meta { font-size: 10px; color: var(--fg-muted); }
+.pos-pcard-mrp { font-size: 10px; color: var(--fg-muted); text-decoration: line-through; }
 .pos-pcard-foot { margin-top: auto; display: flex; justify-content: space-between; align-items: center; padding-top: 4px; }
 .pos-pcard-price { font-weight: 800; font-size: 13.5px; color: var(--brand); }
 .pos-pcard-stock { font-size: 10px; font-weight: 700; color: var(--success); }
